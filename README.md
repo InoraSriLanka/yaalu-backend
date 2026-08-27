@@ -37,18 +37,25 @@ npm install
 cp .env.example .env
 ```
 
-### 3. Start infrastructure (Postgres + RabbitMQ)
-```bash
-docker compose up -d
-```
-RabbitMQ management UI: [http://localhost:15672](http://localhost:15672) (`guest` / `guest`)
+### 3. Run it
 
-### 4. Run services
-Each service runs independently — start whichever you're working on, in its own terminal:
+**Option A — everything in Docker** (infra + services):
 ```bash
+docker compose up -d --build
+```
+This builds and runs `postgres`, `rabbitmq`, `api-gateway`, and `auth-service` as containers, wired together on the compose network. Rebuild after code changes with `docker compose up -d --build` again (no live-reload inside containers).
+
+**Option B — infra in Docker, services running locally with hot-reload** (better for active development):
+```bash
+docker compose up -d postgres rabbitmq
 npx nest start api-gateway --watch
 npx nest start auth-service --watch
 ```
+Each service is started separately, in its own terminal.
+
+> Don't run both options for the same service at once — they'll fight over port 3000 / the RabbitMQ queue. Stop the Docker container (`docker compose stop api-gateway auth-service`) before switching to local `nest start`, or vice versa.
+
+RabbitMQ management UI: [http://localhost:15672](http://localhost:15672) (`guest` / `guest`)
 
 > Only `api-gateway` and `auth-service` are fully wired up so far. The rest still have default boilerplate — see the [Next Steps](docs/ARCHITECTURE_SETUP_GUIDE.md#7-next-steps) section of the setup guide.
 

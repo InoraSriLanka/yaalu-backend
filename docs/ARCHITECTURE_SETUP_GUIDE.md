@@ -135,7 +135,9 @@ yaalu-backend/
 ├── docs/
 │   └── ARCHITECTURE_SETUP_GUIDE.md   # this file
 ├── .env.example
-├── docker-compose.yml            # local Postgres + RabbitMQ
+├── .dockerignore
+├── Dockerfile                     # builds a single service, selected via --build-arg APP_NAME
+├── docker-compose.yml             # Postgres + RabbitMQ + api-gateway + auth-service
 ├── nest-cli.json
 ├── package.json
 ├── tsconfig.json
@@ -277,17 +279,27 @@ Copy this to `.env` locally (`.env` is already git-ignored) and fill in real val
 
 ## 5. Running Things Locally
 
-Start Postgres + RabbitMQ with the bundled `docker-compose.yml`:
-```bash
-docker compose up -d
-```
-RabbitMQ's management UI is at `http://localhost:15672` (default login `guest`/`guest`) — handy for watching queues fill up while debugging.
+There's a `Dockerfile` (parameterized by a build arg, `APP_NAME`) and a `docker-compose.yml` covering Postgres, RabbitMQ, and every service that's been wired up.
 
-Then run whichever services you're working on, each in its own terminal:
+**Option A — everything in Docker:**
 ```bash
+docker compose up -d --build
+```
+This builds `api-gateway` and `auth-service` as containers and runs them alongside `postgres` and `rabbitmq`, all on the compose network (services reach each other by service name — `postgres`, `rabbitmq` — not `localhost`; that's set via `environment:` in `docker-compose.yml`, not `.env`). Since there's no live-reload inside the containers, re-run this command after code changes.
+
+**Option B — infra in Docker, services running locally with hot-reload** (better while actively developing):
+```bash
+docker compose up -d postgres rabbitmq
 npx nest start api-gateway --watch
 npx nest start auth-service --watch
 ```
+Each service runs in its own terminal, using `.env` (via `ConfigModule`) for its connection settings, which point at `localhost`.
+
+> Don't run both at once for the same service — a local `nest start` and the Docker container will fight over port 3000 / the same RabbitMQ queue. `docker compose stop api-gateway auth-service` before switching to local `nest start`, or vice versa.
+
+RabbitMQ's management UI is at `http://localhost:15672` (default login `guest`/`guest`) — handy for watching queues fill up while debugging.
+
+To add a new service to `docker-compose.yml` once it's built out (following the `auth-service` pattern), copy the `auth-service` block, change `build.args.APP_NAME`, and set whatever `DB_*`/queue env vars that service needs.
 
 ---
 
@@ -308,7 +320,7 @@ Git and the `origin` remote already exist here, so skip `git init` / `git remote
 ```bash
 git checkout dev
 git pull origin dev
-git add apps libs docs .env.example docker-compose.yml nest-cli.json package.json package-lock.json tsconfig.json
+git add apps libs docs .env.example .dockerignore Dockerfile docker-compose.yml nest-cli.json package.json package-lock.json tsconfig.json
 git commit -m "Initial Commit - Architecture Foundation"
 git push origin dev
 ```
