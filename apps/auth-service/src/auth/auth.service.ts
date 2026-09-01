@@ -1,38 +1,165 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { ConflictException, Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { User } from '../users/entities/user.entity';
+import { PrismaService } from '@app/common';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { MerchantsService } from '../merchants/merchants.service';
 
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectRepository(User) private readonly usersRepository: Repository<User>,
+    private readonly prisma: PrismaService,
+    private readonly merchantsService: MerchantsService,
   ) {}
 
+  private generateOtp(): string {
+    // Dev mode: use fixed OTP "123456" for easy testing.
+    // Replace with real SMS/email OTP service in production.
+    return '123456';
+  }
+
   async register(dto: RegisterDto) {
-    const existing = await this.usersRepository.findOne({ where: { email: dto.email } });
-    if (existing) {
+    const existingEmail = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    if (existingEmail) {
       throw new ConflictException('Email is already registered');
     }
 
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
-    const user = this.usersRepository.create({ email: dto.email, password: hashedPassword });
-    const saved = await this.usersRepository.save(user);
+    const existingMobile = await this.prisma.user.findUnique({ where: { mobile: dto.mobile } });
+    if (existingMobile) {
+      throw new ConflictException('Mobile number is already registered');
+    }
 
-    const { password, ...result } = saved;
-    return result;
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const otp = this.generateOtp();
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await this.prisma.user.create({
+      data: {
+        fullName: dto.fullName,
+        email: dto.email,
+        mobile: dto.mobile,
+        address: dto.address,
+        password: hashedPassword,
+        role: 'merchant',
+        otp,
+        otpExpiresAt,
+      },
+    });
+
+    return { message: 'OTP sent to your mobile number', mobile: dto.mobile, otp }; // otp in response for dev only
+  }
+
+  async sendOtp(mobile: string) {
+    const user = await this.prisma.user.findUnique({ where: { mobile } });
+    if (!user) {
+      throw new BadRequestException('Mobile number not found');
+    }
+
+    const otp = this.generateOtp();
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        otp,
+        otpExpiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      },
+    });
+
+    return { message: 'OTP sent', otp }; // otp in response for dev only
+  }
+
+  async verifyOtp(mobile: string, otp: string) {
+    const user = await this.prisma.user.findUnique({ where: { mobile } });
+    if (!user) {
+      throw new BadRequestException('Mobile number not found');
+    }
+
+    if (user.otp !== otp || !user.otpExpiresAt || user.otpExpiresAt < new Date()) {
+      throw new UnauthorizedException('Invalid or expired OTP');
+    }
+
+    // Clear OTP after successful verification
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { otp: null, otpExpiresAt: null },
+    });
+
+    // Create merchant profile if it doesn't exist yet
+    let merchant;
+    try {
+      merchant = await this.merchantsService.getProfile(user.id);
+    } catch {
+      merchant = await this.merchantsService.createForUser(
+        user.id,
+        user.fullName ?? '',
+        user.mobile ?? undefined,
+        user.address ?? undefined,
+      );
+    }
+
+    // TODO: Replace with real JWT token generation
+    const accessToken = `dev-token-${user.id}`;
+
+    const { password, ...userResult } = user;
+    return { accessToken, merchant: { ...userResult, ...merchant } };
   }
 
   async login(dto: LoginDto) {
-    const user = await this.usersRepository.findOne({ where: { email: dto.email } });
+    const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (!user || !(await bcrypt.compare(dto.password, user.password))) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    let merchant;
+    try {
+      merchant = await this.merchantsService.getProfile(user.id);
+    } catch {
+      merchant = null;
+    }
+
+    // TODO: Replace with real JWT token generation
+    const accessToken = `dev-token-${user.id}`;
+
     const { password, ...result } = user;
-    return result;
+    return { accessToken, merchant: { ...result, ...merchant } };
+  }
+
+  async forgotPassword(email: string) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      throw new BadRequestException('Email not found');
+    }
+
+    const otp = this.generateOtp();
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        otp,
+        otpExpiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      },
+    });
+
+    return { message: 'OTP sent to your email', otp }; // otp in response for dev only
+  }
+
+  async resetPassword(email: string, otp: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      throw new BadRequestException('Email not found');
+    }
+
+    if (user.otp !== otp || !user.otpExpiresAt || user.otpExpiresAt < new Date()) {
+      throw new UnauthorizedException('Invalid or expired OTP');
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: await bcrypt.hash(newPassword, 10),
+        otp: null,
+        otpExpiresAt: null,
+      },
+    });
+
+    return { message: 'Password reset successfully' };
   }
 }

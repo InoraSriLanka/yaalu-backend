@@ -1,21 +1,4 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: yaalu_auth
-    ports:
-      - '5432:5432'
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres']
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   rabbitmq:
     image: rabbitmq:3-management-alpine
     restart: unless-stopped
@@ -38,7 +21,10 @@ services:
       - '3000:3000'
     environment:
       PORT: 3000
+      DATABASE_URL: ${DATABASE_URL}
       RABBITMQ_URL: amqp://rabbitmq:5672
+    volumes:
+      - uploads_data:/usr/src/app/uploads
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -50,24 +36,76 @@ services:
         APP_NAME: auth-service
     restart: unless-stopped
     environment:
+      DATABASE_URL: ${DATABASE_URL}
       RABBITMQ_URL: amqp://rabbitmq:5672
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USERNAME: postgres
-      DB_PASSWORD: postgres
-      DB_NAME: yaalu_auth
     depends_on:
-      postgres:
-        condition: service_healthy
       rabbitmq:
         condition: service_healthy
 
-  # product-service, order-service, delivery-service, payment-service, and
-  # notification-service aren't wired up as real RabbitMQ microservices yet
-  # (see docs/ARCHITECTURE_SETUP_GUIDE.md, Section 7 — Next Steps). Once one
-  # is built out following the auth-service pattern, add it here the same
-  # way as auth-service above: build.args.APP_NAME set to the service name,
-  # plus whatever DB_*/queue env vars it needs.
+  product-service:
+    build:
+      context: .
+      args:
+        APP_NAME: product-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      RABBITMQ_URL: amqp://rabbitmq:5672
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  order-service:
+    build:
+      context: .
+      args:
+        APP_NAME: order-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      RABBITMQ_URL: amqp://rabbitmq:5672
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  payment-service:
+    build:
+      context: .
+      args:
+        APP_NAME: payment-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      RABBITMQ_URL: amqp://rabbitmq:5672
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  delivery-service:
+    build:
+      context: .
+      args:
+        APP_NAME: delivery-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      RABBITMQ_URL: amqp://rabbitmq:5672
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  notification-service:
+    build:
+      context: .
+      args:
+        APP_NAME: notification-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      RABBITMQ_URL: amqp://rabbitmq:5672
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
 
 volumes:
-  postgres_data:
+  uploads_data:

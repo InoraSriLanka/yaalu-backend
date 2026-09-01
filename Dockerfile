@@ -13,6 +13,9 @@ RUN npm ci
 
 COPY . .
 
+# Generate Prisma Client
+RUN npx prisma generate
+
 ARG APP_NAME
 RUN npx nest build ${APP_NAME}
 
@@ -24,6 +27,10 @@ RUN apk add --no-cache python3 make g++
 
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
+
+# Copy Prisma schema and generate client for production
+COPY prisma ./prisma
+RUN npx prisma generate
 
 ARG APP_NAME
 ENV APP_NAME=${APP_NAME}

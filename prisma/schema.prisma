@@ -1,0 +1,189 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Auth Service Models ──────────────────────────────────
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  password     String
+  role         String    @default("customer")
+  fullName     String?
+  mobile       String?   @unique
+  address      String?
+  otp          String?
+  otpExpiresAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("users")
+}
+
+model Merchant {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  fullName        String
+  mobile          String?
+  address         String?
+  profileImageUrl String?
+  shop            Shop?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("merchants")
+}
+
+model Shop {
+  id                   String   @id @default(uuid())
+  merchantId           String   @unique
+  merchant             Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  // Merchant Info
+  region               String?
+  merchantType         String?
+  shopName             String?
+  outletAddress        String?
+  city                 String?
+
+  // Contact Info
+  ownerName            String?
+  ownerEmail           String?
+  ownerPhone           String?
+  managerName          String?
+  managerPhone         String?
+  managerEmail         String?
+  openTime             String?
+  closeTime            String?
+  workingDays          String?
+
+  // Business Info
+  businessType         String?
+  isBusinessRegistered Boolean  @default(false)
+  businessName         String?
+  registrationNo       String?
+  isTaxRegistered      Boolean  @default(false)
+  tinNumber            String?
+  isVatRegistered      Boolean  @default(false)
+  vatNumber            String?
+  businessAddress      String?
+  businessEmail        String?
+
+  // Bank Details
+  bankName             String?
+  accountName          String?
+  accountNo            String?
+  branch               String?
+
+  // Shop Branding
+  logoUrl              String?
+  bannerUrl            String?
+  description          String?
+
+  isSubmitted          Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@map("shops")
+}
+
+// ─── Product Service Models ──────────────────────────────
+
+model Product {
+  id          String   @id @default(uuid())
+  merchantId  String
+  name        String
+  price       Decimal  @db.Decimal(10, 2)
+  unit        String   @default("unit")
+  stock       Int      @default(0)
+  imageUrl    String?
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("products")
+}
+
+// ─── Order Service Models ──────────────────────────────
+
+enum OrderStatus {
+  pending
+  confirmed
+  processing
+  shipped
+  delivered
+  cancelled
+}
+
+model Order {
+  id           String      @id @default(uuid())
+  merchantId   String
+  customerId   String?
+  customerName String?
+  items        OrderItem[]
+  totalAmount  Decimal     @default(0) @db.Decimal(10, 2)
+  status       OrderStatus @default(pending)
+  notes        String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String  @id @default(uuid())
+  orderId     String
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String?
+  productName String
+  quantity    Int     @default(1)
+  unitPrice   Decimal @db.Decimal(10, 2)
+  subtotal    Decimal @db.Decimal(10, 2)
+
+  @@map("order_items")
+}
+
+model Customer {
+  id         String   @id @default(uuid())
+  merchantId String
+  name       String
+  mobile     String?
+  email      String?
+  address    String?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("customers")
+}
+
+enum InvoiceStatus {
+  pending
+  paid
+}
+
+model Invoice {
+  id           String        @id @default(uuid())
+  merchantId   String
+  customerId   String?
+  customerName String?
+  orderId      String?
+  amount       Decimal       @db.Decimal(10, 2)
+  status       InvoiceStatus @default(pending)
+  dueDate      DateTime?     @db.Date
+  notes        String?
+  paidAt       DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@map("invoices")
+}
