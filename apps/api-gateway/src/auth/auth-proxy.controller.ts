@@ -36,4 +36,9 @@ export class AuthProxyController {
   resetPassword(@Body() body: { email: string; otp: string; newPassword: string }) {
     return this.authService.resetPassword(body.email, body.otp, body.newPassword);
   }
+
+  @Post('create-password')
+  createPassword(@Body() body: any) {
+    return this.authService.createPassword(body);
+  }
 }

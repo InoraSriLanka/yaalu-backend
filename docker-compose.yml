@@ -18,9 +18,9 @@ services:
         APP_NAME: api-gateway
     restart: unless-stopped
     ports:
-      - '3000:3000'
+      - '3001:3001'
     environment:
-      PORT: 3000
+      PORT: 3001
       DATABASE_URL: ${DATABASE_URL}
       RABBITMQ_URL: amqp://rabbitmq:5672
     volumes:

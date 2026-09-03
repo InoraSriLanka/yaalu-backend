@@ -48,7 +48,7 @@ export class MerchantsProxyController {
           '',
         email: user?.email,
         mobile: user?.mobile || merchant?.mobile,
-        fullName: merchant?.fullName || user?.fullName,
+        fullName: merchant?.fullName || '',
         address: user?.address || merchant?.address,
       };
     } catch {
@@ -57,7 +57,7 @@ export class MerchantsProxyController {
         userId: userId,
         email: user?.email,
         mobile: user?.mobile,
-        fullName: user?.fullName,
+        fullName: '',
         address: user?.address,
         shopName: '',
         businessAddress: user?.address || '',

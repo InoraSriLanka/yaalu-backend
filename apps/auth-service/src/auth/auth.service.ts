@@ -53,20 +53,23 @@ export class AuthService {
   async register(dto: RegisterDto) {
     const existing = await this.findUserByPhoneOrEmail(dto.email) || await this.findUserByPhoneOrEmail(dto.mobile);
 
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const initialPassword = dto.password || 'Temporary@123';
+    const hashedPassword = await bcrypt.hash(initialPassword, 10);
     const otp = this.generateOtp();
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
+    const fullName = dto.ownerName || dto.fullName || 'Merchant Owner';
+    const address = dto.shopAddress || dto.address || '';
+
     let user;
     if (existing) {
-      // Update existing user with new credentials and fresh OTP
+      // Update existing user with new details and fresh OTP
       user = await this.prisma.user.update({
         where: { id: existing.id },
         data: {
-          fullName: dto.fullName || existing.fullName,
           email: dto.email,
           mobile: dto.mobile,
-          address: dto.address || existing.address,
+          address: address || existing.address,
           password: hashedPassword,
           otp,
           otpExpiresAt,
@@ -75,10 +78,9 @@ export class AuthService {
     } else {
       user = await this.prisma.user.create({
         data: {
-          fullName: dto.fullName,
           email: dto.email,
           mobile: dto.mobile,
-          address: dto.address,
+          address,
           password: hashedPassword,
           role: 'merchant',
           otp,
@@ -87,15 +89,135 @@ export class AuthService {
       });
     }
 
-    // Ensure merchant and shop records exist
-    await this.merchantsService.createForUser(
-      user.id,
-      user.fullName ?? '',
-      user.mobile ?? undefined,
-      user.address ?? undefined,
-    ).catch(() => {});
+    // Ensure merchant and shop records exist with initial shop details
+    try {
+      let merchant = await this.prisma.merchant.findUnique({
+        where: { userId: user.id },
+        include: { shop: true },
+      });
+
+      if (!merchant) {
+        merchant = await this.prisma.merchant.create({
+          data: {
+            userId: user.id,
+            fullName: dto.ownerName || 'Merchant Owner',
+            mobile: user.mobile,
+            address: user.address,
+            shop: {
+              create: {
+                shopName: dto.shopName || '',
+                outletAddress: dto.shopAddress || user.address || '',
+                businessAddress: dto.shopAddress || user.address || '',
+                registrationNo: dto.shopRegisterNumber || '',
+                ownerName: dto.ownerName || '',
+                ownerEmail: dto.email,
+                ownerPhone: dto.mobile,
+                tinNumber: dto.ownerIdNumber || '',
+              },
+            },
+          },
+          include: { shop: true },
+        });
+      } else if (merchant.shop) {
+        await this.prisma.shop.update({
+          where: { id: merchant.shop.id },
+          data: {
+            shopName: dto.shopName || merchant.shop.shopName,
+            outletAddress: dto.shopAddress || merchant.shop.outletAddress,
+            businessAddress: dto.shopAddress || merchant.shop.businessAddress,
+            registrationNo: dto.shopRegisterNumber || merchant.shop.registrationNo,
+            ownerName: dto.ownerName || merchant.shop.ownerName,
+            tinNumber: dto.ownerIdNumber || merchant.shop.tinNumber,
+          },
+        });
+      }
+    } catch (err) {
+      console.error('[AuthService] Error creating merchant/shop during registration:', err);
+    }
 
     return { message: 'OTP sent to your mobile number', mobile: dto.mobile, otp };
+  }
+
+  async createPassword(dto: {
+    mobile?: string;
+    email?: string;
+    password: string;
+    shopName?: string;
+    shopAddress?: string;
+    shopRegisterNumber?: string;
+    ownerName?: string;
+    ownerIdNumber?: string;
+  }) {
+    const identifier = dto.mobile || dto.email;
+    if (!identifier) {
+      throw new BadRequestException('Mobile number or email required');
+    }
+    const user = await this.findUserByPhoneOrEmail(identifier);
+    if (!user) {
+      throw new BadRequestException('User account not found');
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const updatedUser = await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        otp: null,
+        otpExpiresAt: null,
+      },
+    });
+
+    // Update shop details if passed
+    if (dto.shopName || dto.shopAddress || dto.shopRegisterNumber || dto.ownerName || dto.ownerIdNumber) {
+      try {
+        const merchant = await this.prisma.merchant.findUnique({
+          where: { userId: user.id },
+          include: { shop: true },
+        });
+        if (merchant?.shop) {
+          await this.prisma.shop.update({
+            where: { id: merchant.shop.id },
+            data: {
+              ...(dto.shopName && { shopName: dto.shopName }),
+              ...(dto.shopAddress && { outletAddress: dto.shopAddress, businessAddress: dto.shopAddress }),
+              ...(dto.shopRegisterNumber && { registrationNo: dto.shopRegisterNumber }),
+              ...(dto.ownerName && { ownerName: dto.ownerName }),
+              ...(dto.ownerIdNumber && { tinNumber: dto.ownerIdNumber }),
+            },
+          });
+        }
+      } catch (e) {
+        console.error('[AuthService] Error updating shop:', e);
+      }
+    }
+
+    let merchant: any;
+    try {
+      merchant = await this.merchantsService.getProfile(user.id);
+    } catch {
+      merchant = null;
+    }
+
+    const accessToken = `dev-token-${user.id}`;
+    const { password, ...result } = updatedUser;
+
+    return {
+      accessToken,
+      merchant: {
+        ...result,
+        ...merchant,
+        email: user.email,
+        mobile: user.mobile || merchant?.mobile,
+        fullName: merchant?.fullName || dto.ownerName || '',
+        address: user.address || merchant?.address,
+        shopName: merchant?.shop?.shopName || dto.shopName || '',
+        businessAddress:
+          merchant?.shop?.businessAddress ||
+          merchant?.shop?.outletAddress ||
+          user.address ||
+          '',
+      },
+    };
   }
 
   async sendOtp(mobile: string) {
@@ -140,7 +262,7 @@ export class AuthService {
     } catch {
       merchant = await this.merchantsService.createForUser(
         user.id,
-        user.fullName ?? '',
+        'Merchant Owner',
         user.mobile ?? undefined,
         user.address ?? undefined,
       );
@@ -156,7 +278,7 @@ export class AuthService {
         ...merchant,
         email: user.email,
         mobile: user.mobile || merchant?.mobile,
-        fullName: user.fullName || merchant?.fullName,
+        fullName: merchant?.fullName || '',
         address: user.address || merchant?.address,
         shopName: merchant?.shop?.shopName || '',
         businessAddress:
@@ -182,7 +304,7 @@ export class AuthService {
       try {
         merchant = await this.merchantsService.createForUser(
           user.id,
-          user.fullName ?? '',
+          'Merchant Owner',
           user.mobile ?? undefined,
           user.address ?? undefined,
         );
@@ -201,7 +323,7 @@ export class AuthService {
         ...merchant,
         email: user.email,
         mobile: user.mobile || merchant?.mobile,
-        fullName: user.fullName || merchant?.fullName,
+        fullName: merchant?.fullName || '',
         address: user.address || merchant?.address,
         shopName: merchant?.shop?.shopName || '',
         businessAddress:

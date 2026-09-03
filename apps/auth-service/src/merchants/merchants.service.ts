@@ -17,7 +17,7 @@ export class MerchantsService {
       if (user) {
         return this.createForUser(
           userId,
-          user.fullName || 'Merchant',
+          'Merchant',
           user.mobile || undefined,
           user.address || undefined,
         );
@@ -33,13 +33,12 @@ export class MerchantsService {
       where: { id: merchant.id },
       data: dto,
     });
-    if (dto.fullName || dto.address) {
+    if (dto.address) {
       await this.prisma.user
         .update({
           where: { id: userId },
           data: {
-            ...(dto.fullName ? { fullName: dto.fullName } : {}),
-            ...(dto.address ? { address: dto.address } : {}),
+            address: dto.address,
           },
         })
         .catch(() => {});
