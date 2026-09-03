@@ -1,12 +1,18 @@
 ﻿import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { json, urlencoded } from 'express';
 import { ApiGatewayModule } from './api-gateway.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(ApiGatewayModule);
 
   app.enableCors({ origin: '*', credentials: true });
+
+  // Increase payload size limit to 50MB for Cloudinary base64 image uploads
+  app.use(json({ limit: '50mb' }));
+  app.use(urlencoded({ extended: true, limit: '50mb' }));
+
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   // Setup Swagger OpenAPI Documentation

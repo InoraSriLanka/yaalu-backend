@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+﻿import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import {
@@ -17,10 +17,12 @@ import { AuthProxyController } from './auth/auth-proxy.controller';
 import { ProductsProxyController } from './products/products-proxy.controller';
 import { OrdersProxyController } from './orders/orders-proxy.controller';
 import { DeliveriesProxyController } from './deliveries/deliveries-proxy.controller';
+import { UploadModule } from './uploads/upload.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    UploadModule,
     ClientsModule.registerAsync([
       {
         name: AUTH_SERVICE,
