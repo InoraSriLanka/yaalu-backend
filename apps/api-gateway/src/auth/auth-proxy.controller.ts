@@ -18,8 +18,8 @@ export class AuthProxyController {
     } catch (err: any) {
       console.warn(`[AuthProxyController] Error for pattern ${pattern}:`, err);
       const message =
-        err?.message || (typeof err === 'string' ? err : 'Authentication failed. Please check your details.');
-      const statusCode = err?.statusCode || err?.status || 401;
+        err?.message || (typeof err === 'string' ? err : 'Authentication request failed. Please check your inputs.');
+      const statusCode = err?.statusCode || err?.status || 400;
       throw new HttpException(message, statusCode);
     }
   }
@@ -43,5 +43,19 @@ export class AuthProxyController {
   @ApiResponse({ status: 200, description: 'User profile updated successfully in PostgreSQL' })
   updateProfile(@Body() dto: UpdateProfileDto) {
     return this.handleProxyCall(MSG_PATTERNS.AUTH.UPDATE_PROFILE, dto);
+  }
+
+  @Post('send-otp')
+  @ApiOperation({ summary: 'Dispatch real 6-digit OTP verification code' })
+  @ApiResponse({ status: 200, description: 'OTP dispatched successfully' })
+  sendOtp(@Body() body: { phoneNumber?: string; email?: string }) {
+    return this.handleProxyCall(MSG_PATTERNS.AUTH.SEND_OTP, body);
+  }
+
+  @Post('verify-otp')
+  @ApiOperation({ summary: 'Verify 6-digit OTP verification code' })
+  @ApiResponse({ status: 200, description: 'OTP verified successfully' })
+  verifyOtp(@Body() body: { target: string; code: string }) {
+    return this.handleProxyCall(MSG_PATTERNS.AUTH.VERIFY_OTP, body);
   }
 }

@@ -33,4 +33,16 @@ export class AuthController {
   validateToken(@Payload() data: { token: string }) {
     return this.authService.validateToken(data.token);
   }
+
+  @MessagePattern(MSG_PATTERNS.AUTH.SEND_OTP)
+  @MessagePattern('send_otp')
+  sendOtp(@Payload() data: { phoneNumber?: string; email?: string }) {
+    return this.authService.sendOtp(data);
+  }
+
+  @MessagePattern(MSG_PATTERNS.AUTH.VERIFY_OTP)
+  @MessagePattern('verify_otp')
+  verifyOtp(@Payload() data: { target: string; code: string }) {
+    return this.authService.verifyOtp(data);
+  }
 }

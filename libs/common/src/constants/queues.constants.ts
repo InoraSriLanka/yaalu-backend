@@ -23,6 +23,8 @@ export const MSG_PATTERNS = {
     LOGIN: 'auth.login',
     VALIDATE: 'auth.validate',
     UPDATE_PROFILE: 'auth.update_profile',
+    SEND_OTP: 'auth.send_otp',
+    VERIFY_OTP: 'auth.verify_otp',
   },
   PRODUCT: {
     GET_ALL: 'product.get_all',

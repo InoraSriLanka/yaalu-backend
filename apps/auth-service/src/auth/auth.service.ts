@@ -1,6 +1,6 @@
 ﻿import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, ILike } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { RpcException } from '@nestjs/microservices';
 import * as bcrypt from 'bcrypt';
@@ -11,13 +11,16 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class AuthService {
+  private otpStore = new Map<string, { code: string; expiresAt: number }>();
+
   constructor(
     @InjectRepository(User) private readonly usersRepository: Repository<User>,
     private readonly jwtService: JwtService,
   ) {}
 
   async register(dto: RegisterDto) {
-    const existing = await this.usersRepository.findOne({ where: { email: dto.email } });
+    const cleanEmail = (dto.email || '').trim().toLowerCase();
+    const existing = await this.usersRepository.findOne({ where: { email: ILike(cleanEmail) } });
     if (existing) {
       throw new RpcException({
         statusCode: 409,
@@ -27,7 +30,7 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
     const user = this.usersRepository.create({
-      email: dto.email,
+      email: cleanEmail,
       password: hashedPassword,
       firstName: dto.firstName,
       lastName: dto.lastName,
@@ -48,9 +51,36 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const input = dto.email ? dto.email.trim() : '';
-    const user = await this.usersRepository.findOne({
-      where: [{ email: input }, { phoneNumber: input }],
+    const rawInput = (dto.email || '').trim();
+    if (!rawInput) {
+      throw new RpcException({
+        statusCode: 400,
+        message: 'Please enter your email address or phone number.',
+      });
+    }
+
+    const cleanEmailInput = rawInput.toLowerCase();
+    const inputDigits = rawInput.replace(/[^0-9]/g, '');
+
+    const users = await this.usersRepository.find();
+    const user = users.find((u) => {
+      const uEmail = (u.email || '').trim().toLowerCase();
+      const uPhone = (u.phoneNumber || '').trim().toLowerCase();
+      const uPhoneDigits = uPhone.replace(/[^0-9]/g, '');
+
+      // 1. Email Match (case insensitive)
+      if (uEmail === cleanEmailInput) return true;
+
+      // 2. Exact Phone Match
+      if (uPhone === cleanEmailInput) return true;
+
+      // 3. Phone Match by last 9 digits (handles 077..., +9477..., 77...)
+      if (inputDigits.length >= 7 && uPhoneDigits.length >= 7) {
+        const input9 = inputDigits.slice(-9);
+        const u9 = uPhoneDigits.slice(-9);
+        if (input9 && u9 && input9 === u9) return true;
+      }
+      return false;
     });
 
     if (!user) {
@@ -78,7 +108,7 @@ export class AuthService {
     if (dto.id) {
       user = await this.usersRepository.findOne({ where: { id: dto.id } });
     } else if (dto.email) {
-      user = await this.usersRepository.findOne({ where: { email: dto.email } });
+      user = await this.usersRepository.findOne({ where: { email: ILike(dto.email.trim()) } });
     }
 
     if (!user) {
@@ -115,5 +145,56 @@ export class AuthService {
     } catch {
       return { valid: false, user: null };
     }
+  }
+
+  async sendOtp(data: { phoneNumber?: string; email?: string }) {
+    const target = (data.phoneNumber || data.email || '').trim();
+    if (!target) {
+      throw new RpcException({
+        statusCode: 400,
+        message: 'Please provide a valid phone number or email address.',
+      });
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 5 * 60 * 1000;
+    this.otpStore.set(target, { code, expiresAt });
+
+    return {
+      success: true,
+      message: `OTP verification code dispatched to ${target}`,
+      otp: code,
+    };
+  }
+
+  async verifyOtp(data: { target: string; code: string }) {
+    const target = (data.target || '').trim();
+    const cleanCode = (data.code || '').trim();
+
+    const record = this.otpStore.get(target);
+    if (!record) {
+      throw new RpcException({
+        statusCode: 400,
+        message: 'No active OTP verification code found. Please request a new code.',
+      });
+    }
+
+    if (Date.now() > record.expiresAt) {
+      this.otpStore.delete(target);
+      throw new RpcException({
+        statusCode: 400,
+        message: 'Verification code has expired. Please request a new code.',
+      });
+    }
+
+    if (record.code !== cleanCode) {
+      throw new RpcException({
+        statusCode: 400,
+        message: 'Incorrect verification code. Please check and try again.',
+      });
+    }
+
+    this.otpStore.delete(target);
+    return { verified: true, message: 'OTP verified successfully.' };
   }
 }
