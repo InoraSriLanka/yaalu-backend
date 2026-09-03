@@ -13,6 +13,7 @@ import { UploadController } from './upload/upload.controller';
 
 // Import services directly (monolith mode — no RabbitMQ needed)
 import { AuthService } from '@app/auth-service/auth/auth.service';
+import { SmsService } from '@app/auth-service/sms/sms.service';
 import { MerchantsService } from '@app/auth-service/merchants/merchants.service';
 import { ProductsService } from '@app/product-service/products/products.service';
 import { OrdersService } from '@app/order-service/orders/orders.service';
@@ -37,6 +38,7 @@ import { InvoicesService } from '@app/order-service/invoices/invoices.service';
   providers: [
     ApiGatewayService,
     AuthService,
+    SmsService,
     MerchantsService,
     ProductsService,
     OrdersService,

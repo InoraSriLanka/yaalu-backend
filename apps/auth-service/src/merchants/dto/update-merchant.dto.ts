@@ -7,6 +7,10 @@ export class UpdateMerchantDto {
 
   @IsString()
   @IsOptional()
+  mobile?: string;
+
+  @IsString()
+  @IsOptional()
   address?: string;
 
   @IsString()

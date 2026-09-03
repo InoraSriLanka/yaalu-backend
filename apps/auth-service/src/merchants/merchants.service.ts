@@ -8,95 +8,96 @@ export class MerchantsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getProfile(userId: string) {
-    const merchant = await this.prisma.merchant.findUnique({
+    let shopProfile = await this.prisma.shopProfile.findUnique({
       where: { userId },
-      include: { shop: true },
     });
-    if (!merchant) {
+    if (!shopProfile) {
       const user = await this.prisma.user.findUnique({ where: { id: userId } });
       if (user) {
-        return this.createForUser(
+        shopProfile = await this.createForUser(
           userId,
           'Merchant',
-          user.mobile || undefined,
-          user.address || undefined,
+          undefined,
         );
+      } else {
+        throw new NotFoundException('Merchant profile not found');
       }
-      throw new NotFoundException('Merchant profile not found');
     }
-    return merchant;
+    return {
+      ...shopProfile,
+      id: shopProfile.id,
+      userId: shopProfile.userId,
+      fullName: shopProfile.ownerName || '',
+      mobile: shopProfile.ownerPhone,
+      address: shopProfile.shopAddress || shopProfile.outletAddress,
+      shop: shopProfile,
+    };
   }
 
   async updateProfile(userId: string, dto: UpdateMerchantDto) {
-    const merchant = await this.getProfile(userId);
-    const updated = await this.prisma.merchant.update({
-      where: { id: merchant.id },
-      data: dto,
+    const profile = await this.prisma.shopProfile.upsert({
+      where: { userId },
+      create: {
+        userId,
+        shopName: 'My Shop',
+        ownerName: dto.fullName || 'Merchant',
+        ownerPhone: dto.mobile,
+        shopAddress: dto.address,
+        outletAddress: dto.address,
+      },
+      update: {
+        ...(dto.fullName && { ownerName: dto.fullName }),
+        ...(dto.mobile && { ownerPhone: dto.mobile }),
+        ...(dto.address && { shopAddress: dto.address, outletAddress: dto.address }),
+      },
     });
-    if (dto.address) {
-      await this.prisma.user
-        .update({
-          where: { id: userId },
-          data: {
-            address: dto.address,
-          },
-        })
-        .catch(() => {});
-    }
-    return updated;
+    return profile;
   }
 
   async getShop(userId: string) {
-    const merchant = await this.getProfile(userId);
-    if (!merchant.shop) {
-      const shop = await this.prisma.shop.create({
-        data: { merchantId: merchant.id },
+    let shop = await this.prisma.shopProfile.findUnique({
+      where: { userId },
+    });
+    if (!shop) {
+      shop = await this.prisma.shopProfile.create({
+        data: {
+          userId,
+          shopName: 'My Shop',
+        },
       });
-      return shop;
     }
-    return merchant.shop;
+    return shop;
   }
 
   async updateShop(userId: string, dto: UpdateShopDto) {
     const shop = await this.getShop(userId);
-    return this.prisma.shop.update({
+    return this.prisma.shopProfile.update({
       where: { id: shop.id },
-      data: dto,
+      data: dto as any,
     });
   }
 
   /**
-   * Called by auth-service during registration to create the merchant profile.
+   * Called by auth-service during registration to create the shop profile.
    */
   async createForUser(userId: string, fullName: string, mobile?: string, address?: string) {
-    const existing = await this.prisma.merchant.findUnique({
+    const existing = await this.prisma.shopProfile.findUnique({
       where: { userId },
-      include: { shop: true },
     });
     if (existing) {
       return existing;
     }
 
-    const created = await this.prisma.merchant.create({
-      data: { userId, fullName: fullName || 'Merchant', mobile, address },
+    return this.prisma.shopProfile.create({
+      data: {
+        userId,
+        shopName: 'My Shop',
+        ownerName: fullName || 'Merchant',
+        ownerPhone: mobile,
+        shopAddress: address,
+        outletAddress: address,
+      },
     });
-
-    // Auto-create an empty shop for the merchant
-    await this.prisma.shop
-      .create({
-        data: { merchantId: created.id },
-      })
-      .catch(() => {});
-
-    const result = await this.prisma.merchant.findUnique({
-      where: { id: created.id },
-      include: { shop: true },
-    });
-
-    if (!result) {
-      throw new NotFoundException('Failed to create merchant profile');
-    }
-
-    return result;
   }
 }
+

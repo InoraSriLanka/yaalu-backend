@@ -39,28 +39,29 @@ export class MerchantsProxyController {
       const merchant = await this.merchantsService.getProfile(userId);
       return {
         ...merchant,
-        shopName: merchant?.shop?.shopName || '',
+        shopName: merchant?.shop?.shopName || merchant?.shopName || '',
         businessAddress:
-          merchant?.shop?.businessAddress ||
           merchant?.shop?.outletAddress ||
-          merchant?.address ||
-          user?.address ||
+          merchant?.shop?.shopAddress ||
+          merchant?.shopAddress ||
           '',
         email: user?.email,
-        mobile: user?.mobile || merchant?.mobile,
-        fullName: merchant?.fullName || '',
-        address: user?.address || merchant?.address,
+        mobile: merchant?.ownerPhone || merchant?.mobile || '',
+        contactNumber: merchant?.ownerPhone || merchant?.mobile || '',
+        fullName: merchant?.ownerName || merchant?.fullName || '',
+        address: merchant?.shopAddress || merchant?.outletAddress || '',
       };
     } catch {
       return {
         id: userId,
         userId: userId,
         email: user?.email,
-        mobile: user?.mobile,
+        mobile: '',
+        contactNumber: '',
         fullName: '',
-        address: user?.address,
+        address: '',
         shopName: '',
-        businessAddress: user?.address || '',
+        businessAddress: '',
       };
     }
   }

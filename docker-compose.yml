@@ -38,6 +38,9 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL}
       RABBITMQ_URL: amqp://rabbitmq:5672
+      SMS_API_TOKEN: ${SMS_API_TOKEN:-7194|zP9yVoY1EiX4zse7ZrE3mV18nBW01KNecSpIIu9Qb6c1349d}
+      SMS_SENDER_ID: ${SMS_SENDER_ID:-YaaluApp}
+      SMS_ENDPOINT: ${SMS_ENDPOINT:-https://app.text.lk/api/v3/sms/send}
     depends_on:
       rabbitmq:
         condition: service_healthy

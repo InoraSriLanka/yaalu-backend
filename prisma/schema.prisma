@@ -11,88 +11,102 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─── Auth Service Models ──────────────────────────────────
+// ─── Enums ──────────────────────────────────────────────────
+
+enum Role {
+  CUSTOMER
+  SHOP
+  RIDER
+}
+
+enum RiderStatus {
+  PENDING
+  AVAILABLE
+  BUSY
+  OFFLINE
+  SUSPENDED
+}
+
+// ─── Core User Model ──────────────────────────────────────
 
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  password     String
-  role         String    @default("customer")
-  mobile       String?   @unique
-  address      String?
-  otp          String?
-  otpExpiresAt DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id            String           @id @default(uuid())
+  email         String           @unique
+  role          Role             @default(CUSTOMER)
+  password      String?
+  otp           String?
+  otpExpiresAt  DateTime?        @map("otp_expires_at")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  // 1-to-1 Relations to Role-specific Tables
+  customerProfile CustomerProfile?
+  shopProfile     ShopProfile?
+  riderProfile    RiderProfile?
 
   @@map("users")
 }
 
-model Merchant {
-  id              String   @id @default(uuid())
-  userId          String   @unique
-  fullName        String
-  mobile          String?
-  address         String?
-  profileImageUrl String?
-  shop            Shop?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+// ─── 1. Customer Role Table ───────────────────────────────
 
-  @@map("merchants")
+model CustomerProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique @map("user_id")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  deliveryAddress String?  @map("delivery_address")
+  city            String?
+  latitude        Float?
+  longitude       Float?
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("customer_profiles")
 }
 
-model Shop {
-  id                   String   @id @default(uuid())
-  merchantId           String   @unique
-  merchant             Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+// ─── 2. Shop Role Table ───────────────────────────────────
 
-  // Merchant Info
-  region               String?
-  merchantType         String?
-  shopName             String?
-  outletAddress        String?
-  city                 String?
+model ShopProfile {
+  id             String   @id @default(uuid())
+  userId         String   @unique @map("user_id")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Contact Info
-  ownerName            String?
-  ownerEmail           String?
-  ownerPhone           String?
-  managerName          String?
-  managerPhone         String?
-  managerEmail         String?
-  openTime             String?
-  closeTime            String?
-  workingDays          String?
+  shopName       String   @map("shop_name")
+  shopAddress    String?  @map("shop_address")
+  outletAddress  String?  @map("outlet_address")
+  registrationNo String?  @map("registration_no")
+  ownerName      String?  @map("owner_name")
+  ownerEmail     String?  @map("owner_email")
+  ownerPhone     String?  @map("owner_phone")
+  businessType   String?  @map("business_type")
 
-  // Business Info
-  businessType         String?
-  isBusinessRegistered Boolean  @default(false)
-  businessName         String?
-  registrationNo       String?
-  isTaxRegistered      Boolean  @default(false)
-  tinNumber            String?
-  isVatRegistered      Boolean  @default(false)
-  vatNumber            String?
-  businessAddress      String?
-  businessEmail        String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
-  // Bank Details
-  bankName             String?
-  accountName          String?
-  accountNo            String?
-  branch               String?
+  @@map("shop_profiles")
+}
 
-  // Shop Branding
-  logoUrl              String?
-  bannerUrl            String?
-  description          String?
+// ─── 3. Rider Role Table ──────────────────────────────────
 
-  isSubmitted          Boolean  @default(false)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+model RiderProfile {
+  id               String      @id @default(uuid())
+  userId           String      @unique @map("user_id")
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("shops")
+  vehicleType      String      @map("vehicle_type") // e.g., MOTORBIKE, SCOOTER, THREE_WHEEL, CAR, VAN
+  vehicleNumber    String      @map("vehicle_number")
+  vehicleModel     String?     @map("vehicle_model")
+  licenseNumber    String      @map("license_number")
+  status           RiderStatus @default(PENDING)
+  currentLatitude  Float?      @map("current_latitude")
+  currentLongitude Float?      @map("current_longitude")
+  isApproved       Boolean     @default(false) @map("is_approved")
+
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+
+  @@map("rider_profiles")
 }
 
 // ─── Product Service Models ──────────────────────────────
