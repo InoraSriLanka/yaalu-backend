@@ -7,15 +7,19 @@ import { ApiGatewayModule } from './api-gateway.module';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(ApiGatewayModule);
 
-  app.enableCors();
+  app.enableCors({
+    origin: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
+
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   // Serve uploaded files as static assets at /uploads/*
   app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads/' });
 
-  // This is the only HTTP entrypoint of the system. Every request that needs
-  // auth/product/order/etc. data is proxied from here to the relevant
-  // microservice over RabbitMQ via an injected ClientProxy.
-  await app.listen(process.env.PORT ?? 3000);
+  const port = process.env.PORT || 3001;
+  await app.listen(port, '0.0.0.0');
+  console.log(`[API Gateway] Server running on http://0.0.0.0:${port}`);
 }
 bootstrap();

@@ -1,38 +1,42 @@
-import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
-import { ClientProxy } from '@nestjs/microservices';
-import { PRODUCT_SERVICE } from '@app/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
+import { ProductsService } from '@app/product-service/products/products.service';
+
+function extractUserId(req: any): string {
+  const auth = req.headers.authorization;
+  if (auth?.startsWith('Bearer dev-token-')) {
+    return auth.replace('Bearer dev-token-', '');
+  }
+  return 'default';
+}
 
 @Controller('products')
 export class ProductsProxyController {
-  constructor(@Inject(PRODUCT_SERVICE) private readonly productClient: ClientProxy) {}
+  constructor(private readonly productsService: ProductsService) {}
 
   @Post()
-  create(@Body() body: any) {
-    // TODO: Extract merchantId from JWT token once auth guard is implemented
-    return this.productClient.send('product.create', body);
+  create(@Req() req: any, @Body() body: any) {
+    const merchantId = extractUserId(req);
+    return this.productsService.create({ ...body, merchantId });
   }
 
   @Get()
-  findAll(@Query('activeOnly') activeOnly?: string) {
-    // TODO: Extract merchantId from JWT token
-    return this.productClient.send('product.findAll', {
-      merchantId: 'default',
-      activeOnly: activeOnly === 'true',
-    });
+  findAll(@Req() req: any, @Query('activeOnly') activeOnly?: string) {
+    const merchantId = extractUserId(req);
+    return this.productsService.findAll(merchantId, activeOnly === 'true');
   }
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.productClient.send('product.findOne', { id });
+    return this.productsService.findOne(id);
   }
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() body: any) {
-    return this.productClient.send('product.update', { id, dto: body });
+    return this.productsService.update(id, body);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.productClient.send('product.delete', { id });
+    return this.productsService.remove(id);
   }
 }

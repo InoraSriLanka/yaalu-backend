@@ -35,8 +35,12 @@ export class OrdersService {
 
   async findAll(merchantId: string, status?: string) {
     const where: any = { merchantId };
-    if (status) {
-      where.status = status;
+    if (status && status.toLowerCase() !== 'all') {
+      const validStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
+      const normalized = status.toLowerCase();
+      if (validStatuses.includes(normalized)) {
+        where.status = normalized as OrderStatus;
+      }
     }
     return this.prisma.order.findMany({
       where,
@@ -56,11 +60,12 @@ export class OrdersService {
     return order;
   }
 
-  async updateStatus(id: string, status: OrderStatus) {
+  async updateStatus(id: string, status: OrderStatus | string) {
     await this.findOne(id); // ensure exists
+    const normalized = (typeof status === 'string' ? status.toLowerCase() : status) as OrderStatus;
     return this.prisma.order.update({
       where: { id },
-      data: { status },
+      data: { status: normalized },
       include: { items: true },
     });
   }

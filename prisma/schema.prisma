@@ -99,7 +99,7 @@ model Shop {
 
 model Product {
   id          String   @id @default(uuid())
-  merchantId  String
+  merchantId  String   @default("default")
   name        String
   price       Decimal  @db.Decimal(10, 2)
   unit        String   @default("unit")
@@ -126,7 +126,7 @@ enum OrderStatus {
 
 model Order {
   id           String      @id @default(uuid())
-  merchantId   String
+  merchantId   String      @default("default")
   customerId   String?
   customerName String?
   items        OrderItem[]
@@ -154,7 +154,7 @@ model OrderItem {
 
 model Customer {
   id         String   @id @default(uuid())
-  merchantId String
+  merchantId String   @default("default")
   name       String
   mobile     String?
   email      String?
@@ -173,7 +173,7 @@ enum InvoiceStatus {
 
 model Invoice {
   id           String        @id @default(uuid())
-  merchantId   String
+  merchantId   String        @default("default")
   customerId   String?
   customerName String?
   orderId      String?

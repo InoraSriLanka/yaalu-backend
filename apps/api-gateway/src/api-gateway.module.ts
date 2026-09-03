@@ -1,11 +1,6 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { ClientsModule, Transport } from '@nestjs/microservices';
-import {
-  AUTH_SERVICE, AUTH_QUEUE,
-  PRODUCT_SERVICE, PRODUCT_QUEUE,
-  ORDER_SERVICE, ORDER_QUEUE,
-} from '@app/common';
+import { ConfigModule } from '@nestjs/config';
+import { PrismaModule } from '@app/common';
 import { ApiGatewayController } from './api-gateway.controller';
 import { ApiGatewayService } from './api-gateway.service';
 import { AuthProxyController } from './auth/auth-proxy.controller';
@@ -16,50 +11,18 @@ import { InvoicesProxyController } from './invoices/invoices-proxy.controller';
 import { MerchantsProxyController } from './merchants/merchants-proxy.controller';
 import { UploadController } from './upload/upload.controller';
 
+// Import services directly (monolith mode — no RabbitMQ needed)
+import { AuthService } from '@app/auth-service/auth/auth.service';
+import { MerchantsService } from '@app/auth-service/merchants/merchants.service';
+import { ProductsService } from '@app/product-service/products/products.service';
+import { OrdersService } from '@app/order-service/orders/orders.service';
+import { CustomersService } from '@app/order-service/customers/customers.service';
+import { InvoicesService } from '@app/order-service/invoices/invoices.service';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ClientsModule.registerAsync([
-      {
-        name: AUTH_SERVICE,
-        imports: [ConfigModule],
-        inject: [ConfigService],
-        useFactory: (config: ConfigService) => ({
-          transport: Transport.RMQ,
-          options: {
-            urls: [config.get<string>('RABBITMQ_URL') ?? 'amqp://localhost:5672'],
-            queue: AUTH_QUEUE,
-            queueOptions: { durable: true },
-          },
-        }),
-      },
-      {
-        name: PRODUCT_SERVICE,
-        imports: [ConfigModule],
-        inject: [ConfigService],
-        useFactory: (config: ConfigService) => ({
-          transport: Transport.RMQ,
-          options: {
-            urls: [config.get<string>('RABBITMQ_URL') ?? 'amqp://localhost:5672'],
-            queue: PRODUCT_QUEUE,
-            queueOptions: { durable: true },
-          },
-        }),
-      },
-      {
-        name: ORDER_SERVICE,
-        imports: [ConfigModule],
-        inject: [ConfigService],
-        useFactory: (config: ConfigService) => ({
-          transport: Transport.RMQ,
-          options: {
-            urls: [config.get<string>('RABBITMQ_URL') ?? 'amqp://localhost:5672'],
-            queue: ORDER_QUEUE,
-            queueOptions: { durable: true },
-          },
-        }),
-      },
-    ]),
+    PrismaModule,
   ],
   controllers: [
     ApiGatewayController,
@@ -71,6 +34,14 @@ import { UploadController } from './upload/upload.controller';
     MerchantsProxyController,
     UploadController,
   ],
-  providers: [ApiGatewayService],
+  providers: [
+    ApiGatewayService,
+    AuthService,
+    MerchantsService,
+    ProductsService,
+    OrdersService,
+    CustomersService,
+    InvoicesService,
+  ],
 })
 export class ApiGatewayModule {}
