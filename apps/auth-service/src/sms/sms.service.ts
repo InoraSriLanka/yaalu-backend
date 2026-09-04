@@ -31,7 +31,7 @@ export class SmsService {
   }
 
   /**
-   * Send SMS OTP via Text.lk v3 Gateway
+   * Send SMS OTP via Text.lk v3 Gateway with 2.5s timeout safety
    */
   async sendOtp(phone: string, otp: string): Promise<boolean> {
     const recipient = this.formatPhoneNumber(phone);
@@ -53,6 +53,7 @@ export class SmsService {
           type: 'plain',
           message,
         }),
+        signal: AbortSignal.timeout(2500),
       });
 
       const data: any = await response.json().catch(() => null);
