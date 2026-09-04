@@ -4,6 +4,8 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { SendOtpDto } from './dto/send-otp.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { MSG_PATTERNS } from '@app/common';
 
 @Controller()
@@ -25,15 +27,15 @@ export class AuthController {
   @MessagePattern('send-otp')
   @MessagePattern(MSG_PATTERNS.AUTH.SEND_OTP)
   @MessagePattern('send_otp')
-  sendOtp(@Payload() data: { mobile?: string; phoneNumber?: string; email?: string }) {
-    return this.authService.sendOtp(data);
+  sendOtp(@Payload() dto: SendOtpDto) {
+    return this.authService.sendOtp(dto);
   }
 
   @MessagePattern('verify-otp')
   @MessagePattern(MSG_PATTERNS.AUTH.VERIFY_OTP)
   @MessagePattern('verify_otp')
-  verifyOtp(@Payload() data: { mobile?: string; target?: string; otp?: string; code?: string }) {
-    return this.authService.verifyOtp(data);
+  verifyOtp(@Payload() dto: VerifyOtpDto) {
+    return this.authService.verifyOtp(dto);
   }
 
   @MessagePattern(MSG_PATTERNS.AUTH.UPDATE_PROFILE)

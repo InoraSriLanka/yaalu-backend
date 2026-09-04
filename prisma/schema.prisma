@@ -17,6 +17,7 @@ enum Role {
   CUSTOMER
   SHOP
   RIDER
+  ADMIN
 }
 
 enum RiderStatus {
@@ -54,6 +55,11 @@ model CustomerProfile {
   userId          String   @unique @map("user_id")
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  fullName        String?  @map("full_name")
+  phoneNumber     String?  @map("phone_number")
+  profilePicture  String?  @map("profile_picture")
+  nicNumber       String?  @map("nic_number")
+  
   deliveryAddress String?  @map("delivery_address")
   city            String?
   latitude        Float?

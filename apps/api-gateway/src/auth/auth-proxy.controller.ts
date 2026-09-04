@@ -3,6 +3,8 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from '@app/auth-service/auth/auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { SendOtpDto } from './dto/send-otp.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -17,18 +19,22 @@ export class AuthProxyController {
   }
 
   @Post('send-otp')
-  sendOtp(@Body() body: { mobile?: string; phoneNumber?: string; email?: string }) {
+  @ApiOperation({ summary: 'Send 6-digit OTP code to mobile phone or email' })
+  @ApiResponse({ status: 200, description: 'OTP generated and dispatched' })
+  sendOtp(@Body() dto: SendOtpDto) {
     return this.authService.sendOtp({
-      phoneNumber: body.phoneNumber || body.mobile,
-      email: body.email,
+      phoneNumber: dto.phoneNumber || dto.mobile,
+      email: dto.email,
     });
   }
 
   @Post('verify-otp')
-  verifyOtp(@Body() body: { mobile?: string; target?: string; otp?: string; code?: string }) {
+  @ApiOperation({ summary: 'Verify 6-digit mobile phone OTP code' })
+  @ApiResponse({ status: 200, description: 'OTP verified successfully and access token issued' })
+  verifyOtp(@Body() dto: VerifyOtpDto) {
     return this.authService.verifyOtp({
-      target: body.target || body.mobile || '',
-      code: body.code || body.otp || '',
+      target: dto.target || dto.mobile || dto.phoneNumber || dto.email || '',
+      code: dto.code || dto.otp || '',
     });
   }
 
