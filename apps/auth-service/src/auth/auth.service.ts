@@ -194,6 +194,7 @@ export class AuthService {
         const photo = dto.profilePicture || dto.profilePhoto || dto.avatar || '';
         const nic = dto.nicNumber || dto.nic || '';
 
+        // Upsert customer profile
         await this.prisma.customerProfile.upsert({
           where: { userId: user.id },
           create: {
