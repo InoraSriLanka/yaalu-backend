@@ -1,29 +1,42 @@
-import { Body, Controller, Get, Inject, Param, Post } from '@nestjs/common';
-import { ClientProxy } from '@nestjs/microservices';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { PRODUCT_SERVICE, MSG_PATTERNS } from '@app/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
+import { ProductsService } from '@app/product-service/products/products.service';
 
-@ApiTags('Products')
+function extractUserId(req: any): string {
+  const auth = req.headers.authorization;
+  if (auth?.startsWith('Bearer dev-token-')) {
+    return auth.replace('Bearer dev-token-', '');
+  }
+  return 'default';
+}
+
 @Controller('products')
 export class ProductsProxyController {
-  constructor(@Inject(PRODUCT_SERVICE) private readonly productClient: ClientProxy) {}
+  constructor(private readonly productsService: ProductsService) {}
+
+  @Post()
+  create(@Req() req: any, @Body() body: any) {
+    const merchantId = extractUserId(req);
+    return this.productsService.create({ ...body, merchantId });
+  }
 
   @Get()
-  @ApiOperation({ summary: 'Get list of all catalog products' })
-  @ApiResponse({ status: 200, description: 'List of products' })
-  findAll() {
-    return this.productClient.send(MSG_PATTERNS.PRODUCT.GET_ALL, {});
+  findAll(@Req() req: any, @Query('activeOnly') activeOnly?: string) {
+    const merchantId = extractUserId(req);
+    return this.productsService.findAll(merchantId, activeOnly === 'true');
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get single product details by ID' })
   findOne(@Param('id') id: string) {
-    return this.productClient.send(MSG_PATTERNS.PRODUCT.GET_BY_ID, { id });
+    return this.productsService.findOne(id);
   }
 
-  @Post()
-  @ApiOperation({ summary: 'Create a new product (Store/Vendor action)' })
-  create(@Body() dto: any) {
-    return this.productClient.send(MSG_PATTERNS.PRODUCT.CREATE, dto);
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() body: any) {
+    return this.productsService.update(id, body);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.productsService.remove(id);
   }
 }

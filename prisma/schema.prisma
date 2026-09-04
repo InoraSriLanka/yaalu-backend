@@ -1,0 +1,203 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ──────────────────────────────────────────────────
+
+enum Role {
+  CUSTOMER
+  SHOP
+  RIDER
+}
+
+enum RiderStatus {
+  PENDING
+  AVAILABLE
+  BUSY
+  OFFLINE
+  SUSPENDED
+}
+
+// ─── Core User Model ──────────────────────────────────────
+
+model User {
+  id            String           @id @default(uuid())
+  email         String           @unique
+  role          Role             @default(CUSTOMER)
+  password      String?
+  otp           String?
+  otpExpiresAt  DateTime?        @map("otp_expires_at")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  // 1-to-1 Relations to Role-specific Tables
+  customerProfile CustomerProfile?
+  shopProfile     ShopProfile?
+  riderProfile    RiderProfile?
+
+  @@map("users")
+}
+
+// ─── 1. Customer Role Table ───────────────────────────────
+
+model CustomerProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique @map("user_id")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  deliveryAddress String?  @map("delivery_address")
+  city            String?
+  latitude        Float?
+  longitude       Float?
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("customer_profiles")
+}
+
+// ─── 2. Shop Role Table ───────────────────────────────────
+
+model ShopProfile {
+  id             String   @id @default(uuid())
+  userId         String   @unique @map("user_id")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  shopName       String   @map("shop_name")
+  shopAddress    String?  @map("shop_address")
+  outletAddress  String?  @map("outlet_address")
+  registrationNo String?  @map("registration_no")
+  ownerName      String?  @map("owner_name")
+  ownerEmail     String?  @map("owner_email")
+  ownerPhone     String?  @map("owner_phone")
+  businessType   String?  @map("business_type")
+
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("shop_profiles")
+}
+
+// ─── 3. Rider Role Table ──────────────────────────────────
+
+model RiderProfile {
+  id               String      @id @default(uuid())
+  userId           String      @unique @map("user_id")
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  vehicleType      String      @map("vehicle_type") // e.g., MOTORBIKE, SCOOTER, THREE_WHEEL, CAR, VAN
+  vehicleNumber    String      @map("vehicle_number")
+  vehicleModel     String?     @map("vehicle_model")
+  licenseNumber    String      @map("license_number")
+  status           RiderStatus @default(PENDING)
+  currentLatitude  Float?      @map("current_latitude")
+  currentLongitude Float?      @map("current_longitude")
+  isApproved       Boolean     @default(false) @map("is_approved")
+
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+
+  @@map("rider_profiles")
+}
+
+// ─── Product Service Models ──────────────────────────────
+
+model Product {
+  id          String   @id @default(uuid())
+  merchantId  String   @default("default")
+  name        String
+  price       Decimal  @db.Decimal(10, 2)
+  unit        String   @default("unit")
+  stock       Int      @default(0)
+  imageUrl    String?
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("products")
+}
+
+// ─── Order Service Models ──────────────────────────────
+
+enum OrderStatus {
+  pending
+  confirmed
+  processing
+  shipped
+  delivered
+  cancelled
+}
+
+model Order {
+  id           String      @id @default(uuid())
+  merchantId   String      @default("default")
+  customerId   String?
+  customerName String?
+  items        OrderItem[]
+  totalAmount  Decimal     @default(0) @db.Decimal(10, 2)
+  status       OrderStatus @default(pending)
+  notes        String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String  @id @default(uuid())
+  orderId     String
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String?
+  productName String
+  quantity    Int     @default(1)
+  unitPrice   Decimal @db.Decimal(10, 2)
+  subtotal    Decimal @db.Decimal(10, 2)
+
+  @@map("order_items")
+}
+
+model Customer {
+  id         String   @id @default(uuid())
+  merchantId String   @default("default")
+  name       String
+  mobile     String?
+  email      String?
+  address    String?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("customers")
+}
+
+enum InvoiceStatus {
+  pending
+  paid
+}
+
+model Invoice {
+  id           String        @id @default(uuid())
+  merchantId   String        @default("default")
+  customerId   String?
+  customerName String?
+  orderId      String?
+  amount       Decimal       @db.Decimal(10, 2)
+  status       InvoiceStatus @default(pending)
+  dueDate      DateTime?     @db.Date
+  notes        String?
+  paidAt       DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@map("invoices")
+}

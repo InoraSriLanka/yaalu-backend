@@ -1,4 +1,4 @@
-﻿import { Controller } from '@nestjs/common';
+import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -22,6 +22,20 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
+  @MessagePattern('send-otp')
+  @MessagePattern(MSG_PATTERNS.AUTH.SEND_OTP)
+  @MessagePattern('send_otp')
+  sendOtp(@Payload() data: { mobile?: string; phoneNumber?: string; email?: string }) {
+    return this.authService.sendOtp(data);
+  }
+
+  @MessagePattern('verify-otp')
+  @MessagePattern(MSG_PATTERNS.AUTH.VERIFY_OTP)
+  @MessagePattern('verify_otp')
+  verifyOtp(@Payload() data: { mobile?: string; target?: string; otp?: string; code?: string }) {
+    return this.authService.verifyOtp(data);
+  }
+
   @MessagePattern(MSG_PATTERNS.AUTH.UPDATE_PROFILE)
   @MessagePattern('update_profile')
   updateProfile(@Payload() dto: UpdateProfileDto) {
@@ -34,15 +48,13 @@ export class AuthController {
     return this.authService.validateToken(data.token);
   }
 
-  @MessagePattern(MSG_PATTERNS.AUTH.SEND_OTP)
-  @MessagePattern('send_otp')
-  sendOtp(@Payload() data: { phoneNumber?: string; email?: string }) {
-    return this.authService.sendOtp(data);
+  @MessagePattern('forgot-password')
+  forgotPassword(@Payload() data: { email: string }) {
+    return this.authService.forgotPassword(data.email);
   }
 
-  @MessagePattern(MSG_PATTERNS.AUTH.VERIFY_OTP)
-  @MessagePattern('verify_otp')
-  verifyOtp(@Payload() data: { target: string; code: string }) {
-    return this.authService.verifyOtp(data);
+  @MessagePattern('reset-password')
+  resetPassword(@Payload() data: { email: string; otp: string; newPassword: string }) {
+    return this.authService.resetPassword(data.email, data.otp, data.newPassword);
   }
 }

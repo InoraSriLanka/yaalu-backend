@@ -1,61 +1,56 @@
-﻿import { Body, Controller, HttpException, Inject, Patch, Post } from '@nestjs/common';
-import { ClientProxy } from '@nestjs/microservices';
+import { Body, Controller, Post } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { firstValueFrom } from 'rxjs';
-import { AUTH_SERVICE, MSG_PATTERNS } from '@app/common';
+import { AuthService } from '@app/auth-service/auth/auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthProxyController {
-  constructor(@Inject(AUTH_SERVICE) private readonly authClient: ClientProxy) {}
-
-  private async handleProxyCall<T>(pattern: string, payload: any): Promise<T> {
-    try {
-      return await firstValueFrom(this.authClient.send<T>(pattern, payload));
-    } catch (err: any) {
-      console.warn(`[AuthProxyController] Error for pattern ${pattern}:`, err);
-      const message =
-        err?.message || (typeof err === 'string' ? err : 'Authentication request failed. Please check your inputs.');
-      const statusCode = err?.statusCode || err?.status || 400;
-      throw new HttpException(message, statusCode);
-    }
-  }
+  constructor(private readonly authService: AuthService) {}
 
   @Post('register')
   @ApiOperation({ summary: 'Register a new customer account' })
   @ApiResponse({ status: 201, description: 'User successfully created with JWT token' })
   register(@Body() dto: RegisterDto) {
-    return this.handleProxyCall(MSG_PATTERNS.AUTH.REGISTER, dto);
+    return this.authService.register(dto);
+  }
+
+  @Post('send-otp')
+  sendOtp(@Body() body: { mobile?: string; phoneNumber?: string; email?: string }) {
+    return this.authService.sendOtp({
+      phoneNumber: body.phoneNumber || body.mobile,
+      email: body.email,
+    });
+  }
+
+  @Post('verify-otp')
+  verifyOtp(@Body() body: { mobile?: string; target?: string; otp?: string; code?: string }) {
+    return this.authService.verifyOtp({
+      target: body.target || body.mobile || '',
+      code: body.code || body.otp || '',
+    });
   }
 
   @Post('login')
   @ApiOperation({ summary: 'Log into customer account' })
   @ApiResponse({ status: 200, description: 'Return JWT token and user profile' })
   login(@Body() dto: LoginDto) {
-    return this.handleProxyCall(MSG_PATTERNS.AUTH.LOGIN, dto);
+    return this.authService.login(dto);
   }
 
-  @Patch('profile')
-  @ApiOperation({ summary: 'Update customer user profile details' })
-  @ApiResponse({ status: 200, description: 'User profile updated successfully in PostgreSQL' })
-  updateProfile(@Body() dto: UpdateProfileDto) {
-    return this.handleProxyCall(MSG_PATTERNS.AUTH.UPDATE_PROFILE, dto);
+  @Post('forgot-password')
+  forgotPassword(@Body() body: { email: string }) {
+    return this.authService.forgotPassword(body.email);
   }
 
-  @Post('send-otp')
-  @ApiOperation({ summary: 'Dispatch real 6-digit OTP verification code' })
-  @ApiResponse({ status: 200, description: 'OTP dispatched successfully' })
-  sendOtp(@Body() body: { phoneNumber?: string; email?: string }) {
-    return this.handleProxyCall(MSG_PATTERNS.AUTH.SEND_OTP, body);
+  @Post('reset-password')
+  resetPassword(@Body() body: { email: string; otp: string; newPassword: string }) {
+    return this.authService.resetPassword(body.email, body.otp, body.newPassword);
   }
 
-  @Post('verify-otp')
-  @ApiOperation({ summary: 'Verify 6-digit OTP verification code' })
-  @ApiResponse({ status: 200, description: 'OTP verified successfully' })
-  verifyOtp(@Body() body: { target: string; code: string }) {
-    return this.handleProxyCall(MSG_PATTERNS.AUTH.VERIFY_OTP, body);
+  @Post('create-password')
+  createPassword(@Body() body: any) {
+    return this.authService.createPassword(body);
   }
 }

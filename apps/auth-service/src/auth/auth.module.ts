@@ -1,24 +1,13 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { User } from '../users/entities/user.entity';
+import { MerchantsModule } from '../merchants/merchants.module';
+import { SmsService } from '../sms/sms.service';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([User]),
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET', 'yaalu_secret_key_2026'),
-        signOptions: { expiresIn: '7d' },
-      }),
-    }),
-  ],
+  imports: [MerchantsModule],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService, SmsService],
+  exports: [AuthService, SmsService],
 })
 export class AuthModule {}
