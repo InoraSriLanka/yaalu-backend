@@ -1,41 +1,98 @@
-import { IsEmail, IsString, IsOptional } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsEmail, IsNotEmpty, IsNumber, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class RegisterDto {
-  @IsString()
-  @IsOptional()
-  fullName?: string;
-
+  @ApiProperty({ example: 'user@example.com' })
   @IsEmail()
   email: string;
 
-  @IsString()
-  mobile: string;
-
-  @IsString()
+  @ApiProperty({ example: 'Password123!', required: false })
   @IsOptional()
+  @IsString()
+  password?: string;
+
+  @ApiProperty({ example: 'Firstname', required: false })
+  @IsOptional()
+  @IsString()
+  firstName?: string;
+
+  @ApiProperty({ example: 'Lastname', required: false })
+  @IsOptional()
+  @IsString()
+  lastName?: string;
+
+  @ApiProperty({ example: 'Full Name', required: false })
+  @IsOptional()
+  @IsString()
+  fullName?: string;
+
+  @ApiProperty({ example: '+94770000000', required: false })
+  @IsOptional()
+  @IsString()
+  phoneNumber?: string;
+
+  @ApiProperty({ example: '+94770000000', required: false })
+  @IsOptional()
+  @IsString()
+  mobile?: string;
+
+  @ApiProperty({ example: '199012345678', required: false })
+  @IsOptional()
+  @IsString()
+  nicNumber?: string;
+
+  @ApiProperty({ example: 'Colombo 01', required: false })
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @ApiProperty({ example: 'https://example.com/avatar.jpg', required: false })
+  @IsOptional()
+  @IsString()
+  profilePicture?: string;
+
+  @ApiProperty({ example: 'No. 123, Galle Road, Colombo 03', required: false })
+  @IsOptional()
+  @IsString()
   address?: string;
 
-  @IsString()
+  @ApiProperty({ example: 6.9271, required: false })
   @IsOptional()
+  @IsNumber()
+  latitude?: number;
+
+  @ApiProperty({ example: 79.8612, required: false })
+  @IsOptional()
+  @IsNumber()
+  longitude?: number;
+
+  @ApiProperty({ example: 'customer', default: 'customer', required: false })
+  @IsOptional()
+  @IsString()
+  role?: string;
+
+  @ApiProperty({ example: 'My Shop', required: false })
+  @IsOptional()
+  @IsString()
   shopName?: string;
 
-  @IsString()
+  @ApiProperty({ example: 'Shop Address', required: false })
   @IsOptional()
+  @IsString()
   shopAddress?: string;
 
-  @IsString()
+  @ApiProperty({ example: 'REG123', required: false })
   @IsOptional()
+  @IsString()
   shopRegisterNumber?: string;
 
-  @IsString()
+  @ApiProperty({ example: 'Owner Name', required: false })
   @IsOptional()
+  @IsString()
   ownerName?: string;
 
-  @IsString()
+  @ApiProperty({ example: '199012345678', required: false })
   @IsOptional()
+  @IsString()
   ownerIdNumber?: string;
-
-  @IsString()
-  @IsOptional()
-  password?: string;
 }
