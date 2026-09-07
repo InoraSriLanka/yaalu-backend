@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: yaalu_auth
     ports:
-      - '5432:5432'
+      - '5433:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -20,7 +20,7 @@ services:
     image: rabbitmq:3-management-alpine
     restart: unless-stopped
     ports:
-      - '5672:5672'
+      - '5673:5672'
       - '15672:15672'
     healthcheck:
       test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
@@ -35,10 +35,14 @@ services:
         APP_NAME: api-gateway
     restart: unless-stopped
     ports:
-      - '3000:3000'
+      - '3001:3001'
     environment:
-      PORT: 3000
+      PORT: 3001
+      DATABASE_URL: ${DATABASE_URL}
       RABBITMQ_URL: amqp://rabbitmq:5672
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -50,24 +54,81 @@ services:
         APP_NAME: auth-service
     restart: unless-stopped
     environment:
+      DATABASE_URL: ${DATABASE_URL}
       RABBITMQ_URL: amqp://rabbitmq:5672
+      DB_SSL: 'true'
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
       DB_NAME: yaalu_auth
     depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  product-service:
+    build:
+      context: .
+      args:
+        APP_NAME: product-service
+    restart: unless-stopped
+    environment:
+      RABBITMQ_URL: amqp://rabbitmq:5672
+      DATABASE_URL: ${DATABASE_URL}
+      DB_SSL: 'true'
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: yaalu_product
+    depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
 
-  # product-service, order-service, delivery-service, payment-service, and
-  # notification-service aren't wired up as real RabbitMQ microservices yet
-  # (see docs/ARCHITECTURE_SETUP_GUIDE.md, Section 7 — Next Steps). Once one
-  # is built out following the auth-service pattern, add it here the same
-  # way as auth-service above: build.args.APP_NAME set to the service name,
-  # plus whatever DB_*/queue env vars it needs.
+  order-service:
+    build:
+      context: .
+      args:
+        APP_NAME: order-service
+    restart: unless-stopped
+    environment:
+      RABBITMQ_URL: amqp://rabbitmq:5672
+      DATABASE_URL: ${DATABASE_URL}
+      DB_SSL: 'true'
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: yaalu_order
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  delivery-service:
+    build:
+      context: .
+      args:
+        APP_NAME: delivery-service
+    restart: unless-stopped
+    environment:
+      RABBITMQ_URL: amqp://rabbitmq:5672
+      DATABASE_URL: ${DATABASE_URL}
+      DB_SSL: 'true'
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: yaalu_delivery
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
 volumes:
   postgres_data:
+  uploads_data:

@@ -5,13 +5,16 @@ ARG NODE_VERSION=22-alpine
 FROM node:${NODE_VERSION} AS builder
 WORKDIR /usr/src/app
 
-# python3/make/g++ are needed to build bcrypt's native bindings on alpine (musl)
-RUN apk add --no-cache python3 make g++
+# python3/make/g++ are needed to build bcrypt's native bindings on alpine (musl), openssl for Prisma
+RUN apk add --no-cache python3 make g++ openssl
 
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci || npm install
 
 COPY . .
+
+# Generate Prisma Client
+RUN npx prisma generate
 
 ARG APP_NAME
 RUN npx nest build ${APP_NAME}
@@ -20,10 +23,14 @@ FROM node:${NODE_VERSION} AS runtime
 WORKDIR /usr/src/app
 ENV NODE_ENV=production
 
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 make g++ openssl
 
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev || npm install --omit=dev
+
+# Copy Prisma schema and generate client for production
+COPY prisma ./prisma
+RUN npx prisma generate
 
 ARG APP_NAME
 ENV APP_NAME=${APP_NAME}
