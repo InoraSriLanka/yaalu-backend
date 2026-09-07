@@ -9,7 +9,7 @@ WORKDIR /usr/src/app
 RUN apk add --no-cache python3 make g++ openssl
 
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci || npm install
 
 COPY . .
 
@@ -26,7 +26,7 @@ ENV NODE_ENV=production
 RUN apk add --no-cache python3 make g++ openssl
 
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev || npm install --omit=dev
 
 # Copy Prisma schema and generate client for production
 COPY prisma ./prisma

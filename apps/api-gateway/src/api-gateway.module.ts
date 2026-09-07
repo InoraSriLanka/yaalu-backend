@@ -4,14 +4,14 @@ import { PrismaModule } from '@app/common';
 import { ApiGatewayController } from './api-gateway.controller';
 import { ApiGatewayService } from './api-gateway.service';
 import { AuthProxyController } from './auth/auth-proxy.controller';
+import { AdminProxyController } from './admin/admin-proxy.controller';
 import { ProductsProxyController } from './products/products-proxy.controller';
 import { OrdersProxyController } from './orders/orders-proxy.controller';
 import { CustomersProxyController } from './customers/customers-proxy.controller';
 import { InvoicesProxyController } from './invoices/invoices-proxy.controller';
 import { MerchantsProxyController } from './merchants/merchants-proxy.controller';
-import { UploadController } from './upload/upload.controller';
+import { UploadModule } from './uploads/upload.module';
 
-// Import services directly (monolith mode — no RabbitMQ needed)
 import { AuthService } from '@app/auth-service/auth/auth.service';
 import { SmsService } from '@app/auth-service/sms/sms.service';
 import { MerchantsService } from '@app/auth-service/merchants/merchants.service';
@@ -24,16 +24,17 @@ import { InvoicesService } from '@app/order-service/invoices/invoices.service';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    UploadModule,
   ],
   controllers: [
     ApiGatewayController,
     AuthProxyController,
+    AdminProxyController,
     ProductsProxyController,
     OrdersProxyController,
     CustomersProxyController,
     InvoicesProxyController,
     MerchantsProxyController,
-    UploadController,
   ],
   providers: [
     ApiGatewayService,
