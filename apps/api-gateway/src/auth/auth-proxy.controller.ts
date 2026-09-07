@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Patch, Post, Put } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from '@app/auth-service/auth/auth.service';
 import { PrismaService } from '@app/common';
@@ -7,6 +7,7 @@ import { LoginDto } from './dto/login.dto';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import * as bcrypt from 'bcrypt';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -14,7 +15,7 @@ export class AuthProxyController {
   constructor(
     private readonly authService: AuthService,
     private readonly prisma: PrismaService,
-  ) {}
+  ) { }
 
   @Post('register')
   @ApiOperation({ summary: 'Register a new customer account' })
@@ -102,5 +103,14 @@ export class AuthProxyController {
   @Post('create-password')
   createPassword(@Body() body: any) {
     return this.authService.createPassword(body);
+  }
+
+  @Patch('profile')
+  @Put('profile')
+  @Post('profile')
+  @ApiOperation({ summary: 'Update customer user profile details' })
+  @ApiResponse({ status: 200, description: 'Return updated user profile' })
+  updateProfile(@Body() dto: UpdateProfileDto) {
+    return this.authService.updateProfile(dto);
   }
 }
