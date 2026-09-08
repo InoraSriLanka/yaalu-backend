@@ -118,17 +118,22 @@ model RiderProfile {
 // ─── Product Service Models ──────────────────────────────
 
 model Product {
-  id          String   @id @default(uuid())
-  merchantId  String   @default("default")
-  name        String
-  price       Decimal  @db.Decimal(10, 2)
-  unit        String   @default("unit")
-  stock       Int      @default(0)
-  imageUrl    String?
-  description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  merchantId         String   @default("default") @map("merchantId")
+  merchantName       String?
+  name               String
+  sku                String?
+  price              Decimal  @db.Decimal(10, 2)
+  costPrice          Decimal? @db.Decimal(10, 2)
+  unit               String   @default("unit")
+  stock              Int      @default(0)
+  lowStockThreshold  Int?     @default(10)
+  category           String?
+  imageUrl           String?
+  description        String?
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   @@map("products")
 }
