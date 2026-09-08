@@ -20,9 +20,19 @@ export class ProductsProxyController {
   }
 
   @Get()
-  findAll(@Req() req: any, @Query('activeOnly') activeOnly?: string) {
-    const merchantId = extractUserId(req);
-    return this.productsService.findAll(merchantId, activeOnly === 'true');
+  findAll(
+    @Req() req: any,
+    @Query('merchantId') queryMerchantId?: string,
+    @Query('activeOnly') activeOnly?: string,
+  ) {
+    let merchantId = queryMerchantId;
+    if (!merchantId) {
+      const headerUserId = extractUserId(req);
+      if (headerUserId !== 'default') {
+        merchantId = headerUserId;
+      }
+    }
+    return this.productsService.findAll(merchantId, activeOnly !== 'false');
   }
 
   @Get(':id')
