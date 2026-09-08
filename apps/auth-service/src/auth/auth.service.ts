@@ -110,9 +110,12 @@ export class AuthService {
     }
 
     const shop = user.shopProfile;
-    const fullName = activeProfile?.fullName || activeProfile?.ownerName || safeUser.email?.split('@')[0] || '';
+    const fullName = user.fullName || activeProfile?.fullName || activeProfile?.ownerName || safeUser.email?.split('@')[0] || '';
     const phoneNumber = activeProfile?.phoneNumber || activeProfile?.ownerPhone || '';
     const profilePicture = activeProfile?.profilePicture || '';
+    const nicNumber = activeProfile?.nicNumber || '';
+    const city = activeProfile?.city || '';
+    const deliveryAddress = activeProfile?.deliveryAddress || activeProfile?.shopAddress || activeProfile?.outletAddress || '';
 
     const formattedUser = {
       ...safeUser,
@@ -124,6 +127,13 @@ export class AuthService {
       profilePicture: profilePicture,
       profilePhoto: profilePicture,
       avatar: profilePicture,
+      nicNumber: nicNumber,
+      nic: nicNumber,
+      city: city,
+      address: deliveryAddress,
+      deliveryAddress: deliveryAddress,
+      latitude: activeProfile?.latitude ?? null,
+      longitude: activeProfile?.longitude ?? null,
     };
 
     return {
@@ -170,6 +180,7 @@ export class AuthService {
         where: { id: existing.id },
         data: {
           email: email || existing.email,
+          fullName: name || existing.fullName,
           password: hashedPassword,
           otp,
           otpExpiresAt,
@@ -180,6 +191,7 @@ export class AuthService {
       user = await this.prisma.user.create({
         data: {
           email: email || (mobile || Date.now()) + '@yaalu.app',
+          fullName: name,
           role,
           password: hashedPassword,
           otp,
@@ -191,7 +203,7 @@ export class AuthService {
     if (role === 'CUSTOMER') {
       try {
         const phone = (dto.phoneNumber || dto.contactNumber || dto.mobile || dto.phone || '').trim();
-        const photo = dto.profilePicture || dto.profilePhoto || dto.avatar || '';
+        const photoInput = (dto.profilePicture || dto.profilePhoto || dto.avatar || '').trim(); const validPhoto = photoInput.startsWith('http') ? photoInput : null;
         const nic = dto.nicNumber || dto.nic || '';
 
         // Upsert customer profile
@@ -201,7 +213,7 @@ export class AuthService {
             userId: user.id,
             fullName: name,
             phoneNumber: phone,
-            profilePicture: photo,
+            profilePicture: validPhoto,
             nicNumber: nic,
             deliveryAddress: dto.address || dto.deliveryAddress || '',
             city: dto.city || '',
@@ -211,7 +223,7 @@ export class AuthService {
           update: {
             fullName: name || undefined,
             phoneNumber: phone || undefined,
-            profilePicture: photo || undefined,
+            profilePicture: validPhoto || undefined,
             nicNumber: nic || undefined,
             deliveryAddress: dto.address || dto.deliveryAddress || undefined,
             city: dto.city || undefined,
@@ -537,9 +549,14 @@ export class AuthService {
       throw new BadRequestException('User profile not found in database.');
     }
 
+    const first = (dto.firstName || '').trim();
+    const last = (dto.lastName || '').trim();
+    const combinedName = (first || last) ? [first, last].filter(Boolean).join(' ') : (dto.fullName || dto.name || '').trim();
+
     const userUpdateData: any = {};
     if (dto.email) userUpdateData.email = dto.email;
     if (dto.password) userUpdateData.password = await bcrypt.hash(dto.password, 10);
+    if (combinedName) userUpdateData.fullName = combinedName;
 
     if (Object.keys(userUpdateData).length > 0) {
       await this.prisma.user.update({
@@ -550,20 +567,19 @@ export class AuthService {
 
     const role = user.role;
     if (role === 'CUSTOMER') {
-      const first = (dto.firstName || '').trim();
-      const last = (dto.lastName || '').trim();
-      const combined = (first || last) ? [first, last].filter(Boolean).join(' ') : (dto.fullName || dto.name || '').trim();
       const phone = (dto.phoneNumber || dto.contactNumber || dto.mobile || dto.phone || '').trim();
-      const photo = dto.profilePicture || dto.profilePhoto || dto.avatar || '';
+      const photoInput = (dto.profilePicture || dto.profilePhoto || dto.avatar || '').trim();
+            const photoToUpdate = photoInput.startsWith('http') ? photoInput : undefined;
+            const photoToCreate = photoInput.startsWith('http') ? photoInput : null;
       const nic = dto.nicNumber || dto.nic || '';
 
       await this.prisma.customerProfile.upsert({
         where: { userId: user.id },
         create: {
           userId: user.id,
-          fullName: combined,
+          fullName: combinedName,
           phoneNumber: phone,
-          profilePicture: photo,
+          profilePicture: photoToCreate,
           nicNumber: nic,
           deliveryAddress: dto.deliveryAddress || dto.address || '',
           city: dto.city || '',
@@ -571,9 +587,9 @@ export class AuthService {
           longitude: dto.longitude != null ? Number(dto.longitude) : null,
         },
         update: {
-          fullName: combined || undefined,
+          fullName: combinedName || undefined,
           phoneNumber: phone || undefined,
-          profilePicture: photo || undefined,
+          profilePicture: photoToUpdate,
           nicNumber: nic || undefined,
           deliveryAddress: dto.deliveryAddress || dto.address || undefined,
           city: dto.city || undefined,

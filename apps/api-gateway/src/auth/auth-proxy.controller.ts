@@ -1,4 +1,4 @@
-import { Body, Controller, Patch, Post, Put } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Put, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from '@app/auth-service/auth/auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -61,12 +61,23 @@ export class AuthProxyController {
     return this.authService.createPassword(body);
   }
 
+    @Get('profile')
+  getProfile(@Query() query: any) {
+    return this.authService.updateProfile(query);
+  }
+
   @Patch('profile')
+  updateProfilePatch(@Body() dto: UpdateProfileDto, @Query() query: any) {
+    return this.authService.updateProfile({ ...query, ...dto });
+  }
+
   @Put('profile')
+  updateProfilePut(@Body() dto: UpdateProfileDto, @Query() query: any) {
+    return this.authService.updateProfile({ ...query, ...dto });
+  }
+
   @Post('profile')
-  @ApiOperation({ summary: 'Update customer user profile details' })
-  @ApiResponse({ status: 200, description: 'Return updated user profile' })
-  updateProfile(@Body() dto: UpdateProfileDto) {
-    return this.authService.updateProfile(dto);
+  updateProfilePost(@Body() dto: UpdateProfileDto, @Query() query: any) {
+    return this.authService.updateProfile({ ...query, ...dto });
   }
 }

@@ -33,6 +33,7 @@ enum RiderStatus {
 model User {
   id            String           @id @default(uuid())
   email         String           @unique
+  fullName      String?          @map("full_name")
   role          Role             @default(CUSTOMER)
   password      String?
   otp           String?
