@@ -20,9 +20,9 @@ export class OrdersService {
 
     return this.prisma.order.create({
       data: {
-        merchantId: dto.merchantId,
+        merchantId: dto.merchantId || 'default',
         customerId: dto.customerId,
-        customerName: dto.customerName,
+        customerName: dto.customerName || 'Customer',
         totalAmount,
         notes: dto.notes,
         items: {
@@ -33,8 +33,14 @@ export class OrdersService {
     });
   }
 
-  async findAll(merchantId: string, status?: string) {
-    const where: any = { merchantId };
+  async findAll(merchantId?: string, customerId?: string, status?: string) {
+    const where: any = {};
+    if (merchantId && merchantId !== 'default' && merchantId !== 'all') {
+      where.merchantId = merchantId;
+    }
+    if (customerId && customerId !== 'default' && customerId !== 'all') {
+      where.customerId = customerId;
+    }
     if (status && status.toLowerCase() !== 'all') {
       const validStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
       const normalized = status.toLowerCase();
