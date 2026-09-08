@@ -11,8 +11,11 @@ export class ProductsService {
     return this.prisma.product.create({ data: dto });
   }
 
-  async findAll(merchantId: string, activeOnly = false) {
-    const where: any = { merchantId };
+  async findAll(merchantId?: string, activeOnly = false) {
+    const where: any = {};
+    if (merchantId && merchantId !== 'default' && merchantId !== 'all') {
+      where.merchantId = merchantId;
+    }
     if (activeOnly) {
       where.isActive = true;
     }
