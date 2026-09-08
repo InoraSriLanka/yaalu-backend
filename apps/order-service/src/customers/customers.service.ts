@@ -8,18 +8,29 @@ export class CustomersService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateCustomerDto) {
-    return this.prisma.customer.create({ data: dto });
+    return this.prisma.customerProfile.create({
+      data: {
+        userId: (dto as any).userId || (dto as any).id,
+        fullName: (dto as any).name || (dto as any).fullName,
+        phone: (dto as any).mobile || (dto as any).phone,
+        deliveryAddress: (dto as any).address || (dto as any).deliveryAddress,
+        notes: (dto as any).notes,
+      },
+    });
   }
 
-  async findAll(merchantId: string) {
-    return this.prisma.customer.findMany({
-      where: { merchantId },
+  async findAll(merchantId?: string) {
+    return this.prisma.customerProfile.findMany({
+      include: { user: true },
       orderBy: { createdAt: 'desc' },
     });
   }
 
   async findOne(id: string) {
-    const customer = await this.prisma.customer.findUnique({ where: { id } });
+    const customer = await this.prisma.customerProfile.findUnique({
+      where: { id },
+      include: { user: true },
+    });
     if (!customer) {
       throw new NotFoundException(`Customer #${id} not found`);
     }
@@ -28,15 +39,24 @@ export class CustomersService {
 
   async update(id: string, dto: UpdateCustomerDto) {
     await this.findOne(id); // ensure exists
-    return this.prisma.customer.update({
+    return this.prisma.customerProfile.update({
       where: { id },
-      data: dto,
+      data: {
+        ...((dto as any).name !== undefined && { fullName: (dto as any).name }),
+        ...((dto as any).fullName !== undefined && { fullName: (dto as any).fullName }),
+        ...((dto as any).mobile !== undefined && { phone: (dto as any).mobile }),
+        ...((dto as any).phone !== undefined && { phone: (dto as any).phone }),
+        ...((dto as any).address !== undefined && { deliveryAddress: (dto as any).address }),
+        ...((dto as any).deliveryAddress !== undefined && { deliveryAddress: (dto as any).deliveryAddress }),
+        ...((dto as any).notes !== undefined && { notes: (dto as any).notes }),
+      },
     });
   }
 
   async remove(id: string) {
     await this.findOne(id); // ensure exists
-    await this.prisma.customer.delete({ where: { id } });
+    await this.prisma.customerProfile.delete({ where: { id } });
     return { deleted: true };
   }
 }
+

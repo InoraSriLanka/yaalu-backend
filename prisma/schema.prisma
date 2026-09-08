@@ -54,10 +54,18 @@ model CustomerProfile {
   userId          String   @unique @map("user_id")
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  fullName        String?  @map("full_name")
+  phone           String?
   deliveryAddress String?  @map("delivery_address")
   city            String?
   latitude        Float?
   longitude       Float?
+
+  // Card Payment Details (last 4 digits only for security)
+  cardLast4       String?  @map("card_last4")
+  cardType        String?  @map("card_type")
+  billingAddress  String?  @map("billing_address")
+  notes           String?
 
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
@@ -80,6 +88,18 @@ model ShopProfile {
   ownerEmail     String?  @map("owner_email")
   ownerPhone     String?  @map("owner_phone")
   businessType   String?  @map("business_type")
+  logoUrl        String?  @map("logo_url")
+  bannerUrl      String?  @map("banner_url")
+
+  // Bank & Payout Details
+  bankName       String?  @map("bank_name")
+  accountName    String?  @map("account_name")
+  accountNo      String?  @map("account_no")
+  accountBranch  String?  @map("account_branch")
+
+  // Card Payment Details (last 4 digits only for security)
+  cardLast4      String?  @map("card_last4")
+  cardType       String?  @map("card_type")
 
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
@@ -102,6 +122,12 @@ model RiderProfile {
   currentLatitude  Float?      @map("current_latitude")
   currentLongitude Float?      @map("current_longitude")
   isApproved       Boolean     @default(false) @map("is_approved")
+
+  // Bank Payout Details
+  bankName         String?     @map("bank_name")
+  accountName      String?     @map("account_name")
+  accountNo        String?     @map("account_no")
+  accountBranch    String?     @map("account_branch")
 
   createdAt        DateTime    @default(now()) @map("created_at")
   updatedAt        DateTime    @updatedAt @map("updated_at")
@@ -166,19 +192,6 @@ model OrderItem {
   @@map("order_items")
 }
 
-model Customer {
-  id         String   @id @default(uuid())
-  merchantId String   @default("default")
-  name       String
-  mobile     String?
-  email      String?
-  address    String?
-  notes      String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@map("customers")
-}
 
 enum InvoiceStatus {
   pending

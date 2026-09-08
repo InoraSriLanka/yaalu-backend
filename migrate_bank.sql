@@ -1,0 +1,15 @@
+﻿ALTER TABLE shop_profiles ADD COLUMN IF NOT EXISTS bank_name TEXT;
+ALTER TABLE shop_profiles ADD COLUMN IF NOT EXISTS account_name TEXT;
+ALTER TABLE shop_profiles ADD COLUMN IF NOT EXISTS account_no TEXT;
+ALTER TABLE shop_profiles ADD COLUMN IF NOT EXISTS account_branch TEXT;
+ALTER TABLE shop_profiles ADD COLUMN IF NOT EXISTS card_last4 TEXT;
+ALTER TABLE shop_profiles ADD COLUMN IF NOT EXISTS card_type TEXT;
+ALTER TABLE shop_profiles ADD COLUMN IF NOT EXISTS logo_url TEXT;
+ALTER TABLE shop_profiles ADD COLUMN IF NOT EXISTS banner_url TEXT;
+ALTER TABLE rider_profiles ADD COLUMN IF NOT EXISTS bank_name TEXT;
+ALTER TABLE rider_profiles ADD COLUMN IF NOT EXISTS account_name TEXT;
+ALTER TABLE rider_profiles ADD COLUMN IF NOT EXISTS account_no TEXT;
+ALTER TABLE rider_profiles ADD COLUMN IF NOT EXISTS account_branch TEXT;
+ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS card_last4 TEXT;
+ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS card_type TEXT;
+ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS billing_address TEXT;

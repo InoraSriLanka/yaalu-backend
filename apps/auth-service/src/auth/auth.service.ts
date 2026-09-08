@@ -174,6 +174,8 @@ export class AuthService {
       const profile = await tx.customerProfile.create({
         data: {
           userId: user.id,
+          fullName: dto.name,
+          phone: dto.contactNumber,
           deliveryAddress: dto.deliveryAddress,
           city: dto.city,
         },
