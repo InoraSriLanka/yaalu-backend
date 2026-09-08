@@ -38,12 +38,14 @@ services:
       - '3001:3001'
     environment:
       PORT: 3001
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/yaalu_db?schema=public
       RABBITMQ_URL: amqp://rabbitmq:5672
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
     depends_on:
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
 
@@ -54,15 +56,17 @@ services:
         APP_NAME: auth-service
     restart: unless-stopped
     environment:
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/yaalu_db?schema=public
       RABBITMQ_URL: amqp://rabbitmq:5672
-      DB_SSL: 'true'
+      DB_SSL: 'false'
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
-      DB_NAME: yaalu_auth
+      DB_NAME: yaalu_db
     depends_on:
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
 
@@ -74,13 +78,13 @@ services:
     restart: unless-stopped
     environment:
       RABBITMQ_URL: amqp://rabbitmq:5672
-      DATABASE_URL: ${DATABASE_URL}
-      DB_SSL: 'true'
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/yaalu_db?schema=public
+      DB_SSL: 'false'
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
-      DB_NAME: yaalu_product
+      DB_NAME: yaalu_db
     depends_on:
       postgres:
         condition: service_healthy
@@ -95,13 +99,13 @@ services:
     restart: unless-stopped
     environment:
       RABBITMQ_URL: amqp://rabbitmq:5672
-      DATABASE_URL: ${DATABASE_URL}
-      DB_SSL: 'true'
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/yaalu_db?schema=public
+      DB_SSL: 'false'
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
-      DB_NAME: yaalu_order
+      DB_NAME: yaalu_db
     depends_on:
       postgres:
         condition: service_healthy
@@ -116,13 +120,13 @@ services:
     restart: unless-stopped
     environment:
       RABBITMQ_URL: amqp://rabbitmq:5672
-      DATABASE_URL: ${DATABASE_URL}
-      DB_SSL: 'true'
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/yaalu_db?schema=public
+      DB_SSL: 'false'
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
-      DB_NAME: yaalu_delivery
+      DB_NAME: yaalu_db
     depends_on:
       postgres:
         condition: service_healthy
