@@ -16,6 +16,11 @@ export class RegisterDto {
   @IsString()
   firstName?: string;
 
+  @ApiProperty({ example: "Firstname Lastname", required: false })
+  @IsOptional()
+  @IsString()
+  fullName?: string;
+
   @ApiProperty({ example: 'Lastname', required: false })
   @IsOptional()
   @IsString()
