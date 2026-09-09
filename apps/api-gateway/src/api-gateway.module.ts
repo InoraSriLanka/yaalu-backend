@@ -11,6 +11,7 @@ import { InvoicesProxyController } from './invoices/invoices-proxy.controller';
 import { MerchantsProxyController } from './merchants/merchants-proxy.controller';
 import { UploadModule } from './uploads/upload.module';
 import { ShopsModule } from './shops/shops.module';
+import { CardsModule } from './cards/cards.module';
 
 import { AuthService } from '@app/auth-service/auth/auth.service';
 import { SmsService } from '@app/auth-service/sms/sms.service';
@@ -26,6 +27,7 @@ import { InvoicesService } from '@app/order-service/invoices/invoices.service';
     PrismaModule,
     UploadModule,
     ShopsModule,
+    CardsModule,
   ],
   controllers: [
     ApiGatewayController,
