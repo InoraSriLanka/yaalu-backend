@@ -13,6 +13,7 @@ export class OrdersService {
       productName: item.productName,
       quantity: item.quantity,
       unitPrice: item.unitPrice,
+      imageUrl: item.imageUrl || null,
       subtotal: item.quantity * item.unitPrice,
     }));
 

@@ -35,6 +35,9 @@ export class ShopsController {
       ownerEmail: s.ownerEmail || s.user?.email,
       ownerPhone: s.ownerPhone,
       businessType: s.businessType,
+      shopImage: s.shopImage || s.bannerUrl || 'https://images.unsplash.com/photo-1534723452862-4c874018d66d?w=600&auto=format&fit=crop&q=80',
+      bannerUrl: s.bannerUrl || s.shopImage || 'https://images.unsplash.com/photo-1534723452862-4c874018d66d?w=600&auto=format&fit=crop&q=80',
+      logoUrl: s.logoUrl || null,
       createdAt: s.createdAt,
     }));
   }
@@ -71,6 +74,9 @@ export class ShopsController {
       ownerEmail: shop.ownerEmail || shop.user?.email,
       ownerPhone: shop.ownerPhone,
       businessType: shop.businessType,
+      shopImage: shop.shopImage || shop.bannerUrl || 'https://images.unsplash.com/photo-1534723452862-4c874018d66d?w=600&auto=format&fit=crop&q=80',
+      bannerUrl: shop.bannerUrl || shop.shopImage || 'https://images.unsplash.com/photo-1534723452862-4c874018d66d?w=600&auto=format&fit=crop&q=80',
+      logoUrl: shop.logoUrl || null,
       createdAt: shop.createdAt,
     };
   }
