@@ -15,3 +15,41 @@ export const PAYMENT_QUEUE = 'payment_queue';
 
 export const NOTIFICATION_SERVICE = 'NOTIFICATION_SERVICE';
 export const NOTIFICATION_QUEUE = 'notification_queue';
+
+// Message Patterns
+export const MSG_PATTERNS = {
+  AUTH: {
+    REGISTER: 'auth.register',
+    LOGIN: 'auth.login',
+    VALIDATE: 'auth.validate',
+    UPDATE_PROFILE: 'auth.update_profile',
+    SEND_OTP: 'auth.send_otp',
+    VERIFY_OTP: 'auth.verify_otp',
+  },
+  PRODUCT: {
+    GET_ALL: 'product.get_all',
+    GET_BY_ID: 'product.get_by_id',
+    CREATE: 'product.create',
+  },
+  ORDER: {
+    CREATE: 'order.create',
+    GET_BY_USER: 'order.get_by_user',
+    GET_BY_ID: 'order.get_by_id',
+  },
+  DELIVERY: {
+    BOOK: 'delivery.book',
+    GET_STATUS: 'delivery.get_status',
+    CREATE_RIDE: 'delivery.create_ride',
+    GET_RIDE: 'delivery.get_ride',
+    POST_BID: 'delivery.post_bid',
+    GET_BIDS: 'delivery.get_bids',
+    ACCEPT_BID: 'delivery.accept_bid',
+    VERIFY_PIN: 'delivery.verify_pin',
+    COMPLETE_RIDE: 'delivery.complete_ride',
+    SUBMIT_FEEDBACK: 'delivery.submit_feedback',
+  },
+  PAYMENT: {
+    PROCESS: 'payment.process',
+    GET_STATUS: 'payment.get_status',
+  },
+};

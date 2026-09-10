@@ -1,7 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { join } from 'path';
+import { json, urlencoded } from 'express';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ApiGatewayModule } from './api-gateway.module';
 
 async function bootstrap() {
@@ -13,13 +14,26 @@ async function bootstrap() {
     credentials: true,
   });
 
+  // Increase payload size limit to 50MB for Cloudinary base64 image uploads
+  app.use(json({ limit: '50mb' }));
+  app.use(urlencoded({ extended: true, limit: '50mb' }));
+
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
-  // Serve uploaded files as static assets at /uploads/*
-  app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads/' });
+  // Setup Swagger OpenAPI Documentation
+  const config = new DocumentBuilder()
+    .setTitle('Yaalu Backend API Gateway')
+    .setDescription('HTTP Gateway forwarding requests to Yaalu microservices over RabbitMQ')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
 
-  const port = process.env.PORT || 3001;
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document);
+
+  const port = process.env.PORT ?? 3000;
   await app.listen(port, '0.0.0.0');
-  console.log(`[API Gateway] Server running on http://0.0.0.0:${port}`);
+  console.log(`🚀 API Gateway running on http://0.0.0.0:${port}`);
+  console.log(`📚 Swagger Documentation available at http://localhost:${port}/api/docs`);
 }
 bootstrap();

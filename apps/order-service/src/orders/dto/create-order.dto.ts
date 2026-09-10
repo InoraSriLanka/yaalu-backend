@@ -16,6 +16,10 @@ export class CreateOrderItemDto {
   @IsNumber()
   @Min(0)
   unitPrice: number;
+
+  @IsString()
+  @IsOptional()
+  imageUrl?: string;
 }
 
 export class CreateOrderDto {
