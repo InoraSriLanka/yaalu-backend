@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
 import { OrdersService } from '@app/order-service/orders/orders.service';
 import { OrderStatus } from '@prisma/client';
 
@@ -16,8 +16,9 @@ export class OrdersProxyController {
 
   @Post()
   create(@Req() req: any, @Body() body: any) {
-    const merchantId = extractUserId(req);
-    return this.ordersService.create({ ...body, merchantId });
+    const userFromHeader = extractUserId(req);
+    const customerId = body.customerId || (userFromHeader !== 'default' ? userFromHeader : undefined);
+    return this.ordersService.create({ ...body, customerId });
   }
 
   @Get('stats')
@@ -27,9 +28,15 @@ export class OrdersProxyController {
   }
 
   @Get()
-  findAll(@Req() req: any, @Query('status') status?: string) {
-    const merchantId = extractUserId(req);
-    return this.ordersService.findAll(merchantId, status);
+  findAll(
+    @Req() req: any,
+    @Query('status') status?: string,
+    @Query('customerId') queryCustomerId?: string,
+    @Query('merchantId') queryMerchantId?: string,
+  ) {
+    const userFromHeader = extractUserId(req);
+    const customerId = queryCustomerId || (userFromHeader !== 'default' ? userFromHeader : undefined);
+    return this.ordersService.findAll(queryMerchantId, customerId, status);
   }
 
   @Get(':id')

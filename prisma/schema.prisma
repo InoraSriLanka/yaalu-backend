@@ -11,8 +11,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─── Enums ──────────────────────────────────────────────────
-
 enum Role {
   CUSTOMER
   SHOP
@@ -28,8 +26,6 @@ enum RiderStatus {
   SUSPENDED
 }
 
-// ─── Core User Model ──────────────────────────────────────
-
 model User {
   id            String           @id @default(uuid())
   email         String           @unique
@@ -41,15 +37,12 @@ model User {
   createdAt     DateTime         @default(now()) @map("created_at")
   updatedAt     DateTime         @updatedAt @map("updated_at")
 
-  // 1-to-1 Relations to Role-specific Tables
   customerProfile CustomerProfile?
   shopProfile     ShopProfile?
   riderProfile    RiderProfile?
 
   @@map("users")
 }
-
-// ─── 1. Customer Role Table ───────────────────────────────
 
 model CustomerProfile {
   id              String   @id @default(uuid())
@@ -72,8 +65,6 @@ model CustomerProfile {
   @@map("customer_profiles")
 }
 
-// ─── 2. Shop Role Table ───────────────────────────────────
-
 model ShopProfile {
   id             String   @id @default(uuid())
   userId         String   @unique @map("user_id")
@@ -87,6 +78,9 @@ model ShopProfile {
   ownerEmail     String?  @map("owner_email")
   ownerPhone     String?  @map("owner_phone")
   businessType   String?  @map("business_type")
+  shopImage      String?  @map("shop_image")
+  bannerUrl      String?  @map("banner_url")
+  logoUrl        String?  @map("logo_url")
 
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
@@ -94,14 +88,12 @@ model ShopProfile {
   @@map("shop_profiles")
 }
 
-// ─── 3. Rider Role Table ──────────────────────────────────
-
 model RiderProfile {
   id               String      @id @default(uuid())
   userId           String      @unique @map("user_id")
   user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  vehicleType      String      @map("vehicle_type") // e.g., MOTORBIKE, SCOOTER, THREE_WHEEL, CAR, VAN
+  vehicleType      String      @map("vehicle_type")
   vehicleNumber    String      @map("vehicle_number")
   vehicleModel     String?     @map("vehicle_model")
   licenseNumber    String      @map("license_number")
@@ -115,8 +107,6 @@ model RiderProfile {
 
   @@map("rider_profiles")
 }
-
-// ─── Product Service Models ──────────────────────────────
 
 model Product {
   id                 String   @id @default(uuid())
@@ -138,8 +128,6 @@ model Product {
 
   @@map("products")
 }
-
-// ─── Order Service Models ──────────────────────────────
 
 enum OrderStatus {
   pending
@@ -212,4 +200,98 @@ model Invoice {
   updatedAt    DateTime      @updatedAt
 
   @@map("invoices")
+}
+
+model UserCard {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  cardholderName String   @map("cardholder_name")
+  cardNumberMask String   @map("card_number_mask")
+  expiryDate     String   @map("expiry_date")
+  cardType       String   @default("VISA") @map("card_type")
+  isDefault      Boolean  @default(true) @map("is_default")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("user_cards")
+}
+
+enum RideType {
+  STANDARD
+  BIDDING
+}
+
+enum RideStatus {
+  SEARCHING
+  BIDDING_ACTIVE
+  ACCEPTED
+  VERIFIED_START
+  IN_TRIP
+  COMPLETED
+  CANCELLED
+}
+
+enum BidStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+model RideRequest {
+  id                  String       @id @default(uuid())
+  customerId          String       @map("customer_id")
+  pickupAddress       String       @map("pickup_address")
+  dropoffAddress      String       @map("dropoff_address")
+  pickupLat           Float?       @map("pickup_lat")
+  pickupLng           Float?       @map("pickup_lng")
+  dropoffLat          Float?       @map("dropoff_lat")
+  dropoffLng          Float?       @map("dropoff_lng")
+  rideType            RideType     @default(STANDARD) @map("ride_type")
+  tripCategory        String       @default("ONE_WAY") @map("trip_category")
+  selectedVehicleType String       @default("bike") @map("selected_vehicle_type")
+  status              RideStatus   @default(SEARCHING)
+  biddingTimerSeconds Int          @default(480) @map("bidding_timer_seconds")
+  acceptedDriverId    String?      @map("accepted_driver_id")
+  finalFare           Decimal      @default(0) @db.Decimal(10, 2) @map("final_fare")
+  startPin            String       @default("4200") @map("start_pin")
+  etaMinutes          Int          @default(15) @map("eta_minutes")
+  createdAt           DateTime     @default(now()) @map("created_at")
+  updatedAt           DateTime     @updatedAt @map("updated_at")
+
+  bids                DriverBid[]
+  feedback            RideFeedback?
+
+  @@map("ride_requests")
+}
+
+model DriverBid {
+  id            String      @id @default(uuid())
+  rideRequestId String      @map("ride_request_id")
+  rideRequest   RideRequest @relation(fields: [rideRequestId], references: [id], onDelete: Cascade)
+  driverId      String      @map("driver_id")
+  driverName    String      @map("driver_name")
+  rating        Float       @default(5.0)
+  vehicleModel  String      @map("vehicle_model")
+  vehicleNumber String      @map("vehicle_number")
+  proposedFare  Decimal     @db.Decimal(10, 2) @map("proposed_fare")
+  status        BidStatus   @default(PENDING)
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  @@map("driver_bids")
+}
+
+model RideFeedback {
+  id            String      @id @default(uuid())
+  rideRequestId String      @unique @map("ride_request_id")
+  rideRequest   RideRequest @relation(fields: [rideRequestId], references: [id], onDelete: Cascade)
+  customerId    String      @map("customer_id")
+  driverId      String?     @map("driver_id")
+  rating        Int         @default(5)
+  compliments   String[]
+  comment       String?
+  tipAmount     Decimal     @default(0) @db.Decimal(10, 2) @map("tip_amount")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  @@map("ride_feedbacks")
 }
