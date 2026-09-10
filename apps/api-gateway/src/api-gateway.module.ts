@@ -5,6 +5,10 @@ import { AUTH_SERVICE, AUTH_QUEUE } from '@app/common';
 import { ApiGatewayController } from './api-gateway.controller';
 import { ApiGatewayService } from './api-gateway.service';
 import { AuthProxyController } from './auth/auth-proxy.controller';
+import {
+  RidersProxyController,
+  AdminRidersProxyController,
+} from './riders/riders-proxy.controller';
 
 @Module({
   imports: [
@@ -25,7 +29,12 @@ import { AuthProxyController } from './auth/auth-proxy.controller';
       },
     ]),
   ],
-  controllers: [ApiGatewayController, AuthProxyController],
+  controllers: [
+    ApiGatewayController,
+    AuthProxyController,
+    RidersProxyController,
+    AdminRidersProxyController,
+  ],
   providers: [ApiGatewayService],
 })
 export class ApiGatewayModule {}
