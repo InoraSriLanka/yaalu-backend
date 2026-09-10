@@ -1,4 +1,4 @@
-﻿export const AUTH_SERVICE = 'AUTH_SERVICE';
+export const AUTH_SERVICE = 'AUTH_SERVICE';
 export const AUTH_QUEUE = 'auth_queue';
 
 export const PRODUCT_SERVICE = 'PRODUCT_SERVICE';
@@ -39,6 +39,14 @@ export const MSG_PATTERNS = {
   DELIVERY: {
     BOOK: 'delivery.book',
     GET_STATUS: 'delivery.get_status',
+    CREATE_RIDE: 'delivery.create_ride',
+    GET_RIDE: 'delivery.get_ride',
+    POST_BID: 'delivery.post_bid',
+    GET_BIDS: 'delivery.get_bids',
+    ACCEPT_BID: 'delivery.accept_bid',
+    VERIFY_PIN: 'delivery.verify_pin',
+    COMPLETE_RIDE: 'delivery.complete_ride',
+    SUBMIT_FEEDBACK: 'delivery.submit_feedback',
   },
   PAYMENT: {
     PROCESS: 'payment.process',
