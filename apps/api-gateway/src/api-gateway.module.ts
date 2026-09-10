@@ -11,6 +11,7 @@ import { InvoicesProxyController } from './invoices/invoices-proxy.controller';
 import { MerchantsProxyController } from './merchants/merchants-proxy.controller';
 import { UploadController } from './upload/upload.controller';
 import { AdminController } from './admin/admin.controller';
+import { RidersProxyController } from './riders/riders-proxy.controller';
 
 // Import services directly (monolith mode — no RabbitMQ needed)
 import { AuthService } from '@app/auth-service/auth/auth.service';
@@ -36,6 +37,7 @@ import { InvoicesService } from '@app/order-service/invoices/invoices.service';
     MerchantsProxyController,
     UploadController,
     AdminController,
+    RidersProxyController,
   ],
   providers: [
     ApiGatewayService,
