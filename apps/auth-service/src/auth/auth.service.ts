@@ -1,3 +1,10 @@
+import { v2 as cloudinary } from 'cloudinary';
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 import { ConflictException, Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '@app/common';
@@ -11,6 +18,31 @@ import { SmsService } from '../sms/sms.service';
 
 @Injectable()
 export class AuthService {
+  private async resolveCloudinaryPhoto(photoInput?: string, folder = 'yaalu/users'): Promise<string | null> {
+    if (!photoInput) return null;
+    const clean = photoInput.trim();
+    if (!clean) return null;
+
+    if (clean.startsWith('http://') || clean.startsWith('https://')) {
+      return clean;
+    }
+
+    try {
+      const filePayload = clean.startsWith('data:') ? clean : `data:image/jpeg;base64,${clean}`;
+      const res = await cloudinary.uploader.upload(filePayload, {
+        folder: folder,
+        resource_type: 'image',
+      });
+      if (res && res.secure_url) {
+        console.log(`[AuthService] Auto-uploaded profile photo to Cloudinary (${folder}):`, res.secure_url);
+        return res.secure_url;
+      }
+    } catch (err: any) {
+      console.warn('[AuthService Cloudinary Upload Info]:', err?.message || err);
+    }
+    return null;
+  }
+
   private otpStore = new Map<string, { code: string; expiresAt: number }>();
 
   constructor(
@@ -203,7 +235,8 @@ export class AuthService {
     if (role === 'CUSTOMER') {
       try {
         const phone = (dto.phoneNumber || dto.contactNumber || dto.mobile || dto.phone || '').trim();
-        const photoInput = (dto.profilePicture || dto.profilePhoto || dto.avatar || '').trim(); const validPhoto = photoInput.startsWith('http') ? photoInput : null;
+        const photoInput = (dto.profilePicture || dto.profilePhoto || dto.avatar || '').trim();
+        const validPhoto = await this.resolveCloudinaryPhoto(photoInput, 'yaalu/users');
         const nic = dto.nicNumber || dto.nic || '';
 
         // Upsert customer profile
