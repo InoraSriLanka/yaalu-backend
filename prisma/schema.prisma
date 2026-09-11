@@ -127,7 +127,7 @@ model RiderProfile {
 }
 
 model FareSetting {
-  id                    String   @id @default("default")
+  id                    String   @id @default(uuid())
   vehicleType           String   @unique @default("THREE_WHEEL") @map("vehicle_type")
   vehicleName           String   @default("Three-Wheeler / Tuk Tuk") @map("vehicle_name")
   petrolPrice           Float    @default(370.0) @map("petrol_price")
