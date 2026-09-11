@@ -89,23 +89,63 @@ model ShopProfile {
 }
 
 model RiderProfile {
-  id               String      @id @default(uuid())
-  userId           String      @unique @map("user_id")
-  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                  String      @id @default(uuid())
+  userId              String      @unique @map("user_id")
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  vehicleType      String      @map("vehicle_type")
-  vehicleNumber    String      @map("vehicle_number")
-  vehicleModel     String?     @map("vehicle_model")
-  licenseNumber    String      @map("license_number")
-  status           RiderStatus @default(PENDING)
-  currentLatitude  Float?      @map("current_latitude")
-  currentLongitude Float?      @map("current_longitude")
-  isApproved       Boolean     @default(false) @map("is_approved")
+  fullName            String?     @map("full_name")
+  phoneNumber         String?     @map("phone_number")
+  nicNumber           String?     @map("nic_number")
+  profilePhotoUrl     String?     @map("profile_photo_url")
+  address             String?
+  city                String?
 
-  createdAt        DateTime    @default(now()) @map("created_at")
-  updatedAt        DateTime    @updatedAt @map("updated_at")
+  vehicleType         String      @map("vehicle_type")
+  vehicleNumber       String      @map("vehicle_number")
+  vehicleModel        String?     @map("vehicle_model")
+  licenseNumber       String      @map("license_number")
+  licenseExpiry       String?     @map("license_expiry")
+  licenseFrontUrl     String?     @map("license_front_url")
+  licenseBackUrl      String?     @map("license_back_url")
+
+  bankName            String?     @map("bank_name")
+  accountName         String?     @map("account_name")
+  accountNo           String?     @map("account_no")
+  accountBranch       String?     @map("account_branch")
+
+  status              RiderStatus @default(PENDING)
+  currentLatitude     Float?      @map("current_latitude")
+  currentLongitude    Float?      @map("current_longitude")
+  isApproved          Boolean     @default(false) @map("is_approved")
+  deliveriesCompleted Int         @default(0) @map("deliveries_completed")
+  rating              Float       @default(5.0)
+
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
 
   @@map("rider_profiles")
+}
+
+model FareSetting {
+  id                    String   @id @default("default")
+  vehicleType           String   @unique @default("THREE_WHEEL") @map("vehicle_type")
+  vehicleName           String   @default("Three-Wheeler / Tuk Tuk") @map("vehicle_name")
+  petrolPrice           Float    @default(370.0) @map("petrol_price")
+  twoTOilRatio          Float    @default(0.02) @map("two_t_oil_ratio")
+  twoTOilPrice          Float    @default(1500.0) @map("two_t_oil_price")
+  mileageKmPerLitre     Float    @default(25.0) @map("mileage_km_per_litre")
+  otherRunningCostPerKm Float    @default(5.0) @map("other_running_cost_per_km")
+  fixedCostPerKm        Float    @default(3.0) @map("fixed_cost_per_km")
+  profitMultiplier      Float    @default(3.0) @map("profit_multiplier")
+  baseChargeFirstKm     Float    @default(150.0) @map("base_charge_first_km")
+  minimumFare           Float    @default(150.0) @map("minimum_fare")
+  commissionPercent     Float    @default(10.0) @map("commission_percent")
+  bidTimeoutMinutes     Float    @default(2.0) @map("bid_timeout_minutes")
+  isActive              Boolean  @default(true) @map("is_active")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  @@map("fare_settings")
 }
 
 model Product {

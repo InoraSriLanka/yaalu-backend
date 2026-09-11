@@ -64,14 +64,29 @@ async function main() {
     // Ensure rider_profiles columns
     await prisma.$executeRawUnsafe(`
       ALTER TABLE "rider_profiles"
-        ADD COLUMN IF NOT EXISTS "vehicle_type" TEXT,
-        ADD COLUMN IF NOT EXISTS "vehicle_number" TEXT,
+        ADD COLUMN IF NOT EXISTS "full_name" TEXT,
+        ADD COLUMN IF NOT EXISTS "phone_number" TEXT,
+        ADD COLUMN IF NOT EXISTS "nic_number" TEXT,
+        ADD COLUMN IF NOT EXISTS "profile_photo_url" TEXT,
+        ADD COLUMN IF NOT EXISTS "address" TEXT,
+        ADD COLUMN IF NOT EXISTS "city" TEXT,
+        ADD COLUMN IF NOT EXISTS "vehicle_type" TEXT DEFAULT 'MOTORBIKE',
+        ADD COLUMN IF NOT EXISTS "vehicle_number" TEXT DEFAULT '',
         ADD COLUMN IF NOT EXISTS "vehicle_model" TEXT,
-        ADD COLUMN IF NOT EXISTS "license_number" TEXT,
+        ADD COLUMN IF NOT EXISTS "license_number" TEXT DEFAULT '',
+        ADD COLUMN IF NOT EXISTS "license_expiry" TEXT,
+        ADD COLUMN IF NOT EXISTS "license_front_url" TEXT,
+        ADD COLUMN IF NOT EXISTS "license_back_url" TEXT,
+        ADD COLUMN IF NOT EXISTS "bank_name" TEXT,
+        ADD COLUMN IF NOT EXISTS "account_name" TEXT,
+        ADD COLUMN IF NOT EXISTS "account_no" TEXT,
+        ADD COLUMN IF NOT EXISTS "account_branch" TEXT,
         ADD COLUMN IF NOT EXISTS "status" "RiderStatus" DEFAULT 'PENDING',
         ADD COLUMN IF NOT EXISTS "current_latitude" DOUBLE PRECISION,
         ADD COLUMN IF NOT EXISTS "current_longitude" DOUBLE PRECISION,
         ADD COLUMN IF NOT EXISTS "is_approved" BOOLEAN DEFAULT false,
+        ADD COLUMN IF NOT EXISTS "deliveries_completed" INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS "rating" DOUBLE PRECISION DEFAULT 5.0,
         ADD COLUMN IF NOT EXISTS "created_at" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
         ADD COLUMN IF NOT EXISTS "updated_at" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP;
     `);

@@ -275,22 +275,37 @@ export class AdminProxyController {
       orderBy: { createdAt: 'desc' },
     });
 
-    return riders.map((r) => ({
-      id: r.id,
-      userId: r.userId,
-      fullName: r.user?.email?.split('@')[0] || '',
-      phone: '',
-      email: r.user?.email || '',
-      vehicleType: r.vehicleType,
-      vehicleNumber: r.vehicleNumber,
-      vehicleModel: r.vehicleModel || '',
-      licenseNumber: r.licenseNumber,
-      status: r.status,
-      isApproved: r.isApproved,
-      deliveriesCompleted: 0,
-      rating: 5.0,
-      createdAt: r.createdAt.toISOString(),
-    }));
+    return riders.map((r) => {
+      const fullName =
+        r.fullName ||
+        r.user?.fullName ||
+        (r.user?.email ? r.user.email.split('@')[0] : 'Rider Partner');
+      const phone = r.phoneNumber || r.user?.email || '';
+
+      return {
+        id: r.id,
+        userId: r.userId,
+        fullName,
+        phone,
+        email: r.user?.email || '',
+        vehicleType: r.vehicleType || 'MOTORBIKE',
+        vehicleNumber: r.vehicleNumber || 'WP REG-0000',
+        vehicleModel: r.vehicleModel || '',
+        licenseNumber: r.licenseNumber || 'LIC-00000',
+        licenseExpiry: r.licenseExpiry || '',
+        licenseFrontUrl: r.licenseFrontUrl || '',
+        licenseBackUrl: r.licenseBackUrl || '',
+        bankName: r.bankName || '',
+        accountName: r.accountName || '',
+        accountNo: r.accountNo || '',
+        accountBranch: r.accountBranch || '',
+        status: r.status,
+        isApproved: r.isApproved,
+        deliveriesCompleted: r.deliveriesCompleted || 0,
+        rating: r.rating || 5.0,
+        createdAt: r.createdAt.toISOString(),
+      };
+    });
   }
 
   @Patch('riders/:id/approve')
@@ -309,6 +324,22 @@ export class AdminProxyController {
     return this.prisma.riderProfile.update({
       where: { id },
       data: { status: body.status as any },
+    });
+  }
+
+  @Patch('riders/:id/bank')
+  async updateRiderBankDetails(
+    @Param('id') id: string,
+    @Body() body: { bankName?: string; accountName?: string; accountNo?: string; accountBranch?: string }
+  ) {
+    return this.prisma.riderProfile.update({
+      where: { id },
+      data: {
+        bankName: body.bankName,
+        accountName: body.accountName,
+        accountNo: body.accountNo,
+        accountBranch: body.accountBranch,
+      },
     });
   }
 
@@ -390,6 +421,279 @@ export class AdminProxyController {
       totalUsers: userCount,
       todayOrders: orders.length,
       monthlyGrowth: 0,
+    };
+  }
+
+  // ─── Fare Calculation Formula & Pricing Engine ──────────────
+  @Get('fare-settings')
+  async getFareSettings() {
+    // Default fallback presets if table is empty
+    const defaultConfigs = [
+      {
+        id: 'THREE_WHEEL',
+        vehicleType: 'THREE_WHEEL',
+        vehicleName: 'Three-Wheeler / Tuk Tuk',
+        petrolPrice: 370.0, // B
+        twoTOilRatio: 0.02, // C (20ml per 1L)
+        twoTOilPrice: 1500.0, // D
+        mileageKmPerLitre: 25.0, // F
+        otherRunningCostPerKm: 5.0, // G
+        fixedCostPerKm: 3.0, // H
+        profitMultiplier: 3.0, // J = 3I
+        baseChargeFirstKm: 150.0, // K
+        minimumFare: 150.0,
+        commissionPercent: 10.0, // Yaalu Platform Commission %
+        bidTimeoutMinutes: 2.0, // Bid Window Timeout (e.g. 2 minutes / 120s)
+        isActive: true,
+      },
+      {
+        id: 'MOTORBIKE',
+        vehicleType: 'MOTORBIKE',
+        vehicleName: 'Motorbike / Bike Delivery',
+        petrolPrice: 370.0,
+        twoTOilRatio: 0.0,
+        twoTOilPrice: 0.0,
+        mileageKmPerLitre: 45.0,
+        otherRunningCostPerKm: 3.0,
+        fixedCostPerKm: 2.0,
+        profitMultiplier: 3.0,
+        baseChargeFirstKm: 100.0,
+        minimumFare: 100.0,
+        commissionPercent: 10.0,
+        bidTimeoutMinutes: 2.0,
+        isActive: true,
+      },
+      {
+        id: 'CAR',
+        vehicleType: 'CAR',
+        vehicleName: 'Car / Flex Taxi',
+        petrolPrice: 370.0,
+        twoTOilRatio: 0.0,
+        twoTOilPrice: 0.0,
+        mileageKmPerLitre: 14.0,
+        otherRunningCostPerKm: 10.0,
+        fixedCostPerKm: 6.0,
+        profitMultiplier: 3.0,
+        baseChargeFirstKm: 250.0,
+        minimumFare: 250.0,
+        commissionPercent: 12.0,
+        bidTimeoutMinutes: 3.0,
+        isActive: true,
+      },
+      {
+        id: 'VAN',
+        vehicleType: 'VAN',
+        vehicleName: 'Van / Large Delivery',
+        petrolPrice: 370.0,
+        twoTOilRatio: 0.0,
+        twoTOilPrice: 0.0,
+        mileageKmPerLitre: 10.0,
+        otherRunningCostPerKm: 15.0,
+        fixedCostPerKm: 8.0,
+        profitMultiplier: 3.0,
+        baseChargeFirstKm: 350.0,
+        minimumFare: 350.0,
+        commissionPercent: 15.0,
+        bidTimeoutMinutes: 5.0,
+        isActive: true,
+      },
+    ];
+
+    let dbSettings: any[] = [];
+    try {
+      dbSettings = await (this.prisma as any).fareSetting?.findMany({
+        orderBy: { createdAt: 'asc' },
+      }) || [];
+    } catch {
+      // ignore
+    }
+
+    const configs = dbSettings.length > 0 ? dbSettings : defaultConfigs;
+
+    return configs.map((cfg) => this.computeFormulaBreakdown(cfg));
+  }
+
+  @Patch('fare-settings')
+  async updateFareSettings(@Body() body: any) {
+    const vType = body.vehicleType || 'THREE_WHEEL';
+    const petrolPrice = parseFloat(body.petrolPrice) || 370.0;
+    const twoTOilRatio = parseFloat(body.twoTOilRatio) >= 0 ? parseFloat(body.twoTOilRatio) : 0.02;
+    const twoTOilPrice = parseFloat(body.twoTOilPrice) >= 0 ? parseFloat(body.twoTOilPrice) : 1500.0;
+    const mileageKmPerLitre = parseFloat(body.mileageKmPerLitre) > 0 ? parseFloat(body.mileageKmPerLitre) : 25.0;
+    const otherRunningCostPerKm = parseFloat(body.otherRunningCostPerKm) >= 0 ? parseFloat(body.otherRunningCostPerKm) : 5.0;
+    const fixedCostPerKm = parseFloat(body.fixedCostPerKm) >= 0 ? parseFloat(body.fixedCostPerKm) : 3.0;
+    const profitMultiplier = parseFloat(body.profitMultiplier) > 0 ? parseFloat(body.profitMultiplier) : 3.0;
+    const baseChargeFirstKm = parseFloat(body.baseChargeFirstKm) >= 0 ? parseFloat(body.baseChargeFirstKm) : 150.0;
+    const minimumFare = parseFloat(body.minimumFare) >= 0 ? parseFloat(body.minimumFare) : baseChargeFirstKm;
+    const commissionPercent = parseFloat(body.commissionPercent) >= 0 ? parseFloat(body.commissionPercent) : 10.0;
+    const bidTimeoutMinutes = parseFloat(body.bidTimeoutMinutes) > 0 ? parseFloat(body.bidTimeoutMinutes) : 2.0;
+
+    let updated: any = null;
+    try {
+      updated = await (this.prisma as any).fareSetting.upsert({
+        where: { vehicleType: vType },
+        create: {
+          id: vType,
+          vehicleType: vType,
+          vehicleName: body.vehicleName || (vType === 'THREE_WHEEL' ? 'Three-Wheeler / Tuk Tuk' : vType),
+          petrolPrice,
+          twoTOilRatio,
+          twoTOilPrice,
+          mileageKmPerLitre,
+          otherRunningCostPerKm,
+          fixedCostPerKm,
+          profitMultiplier,
+          baseChargeFirstKm,
+          minimumFare,
+          commissionPercent,
+          bidTimeoutMinutes,
+          isActive: true,
+        },
+        update: {
+          petrolPrice,
+          twoTOilRatio,
+          twoTOilPrice,
+          mileageKmPerLitre,
+          otherRunningCostPerKm,
+          fixedCostPerKm,
+          profitMultiplier,
+          baseChargeFirstKm,
+          minimumFare,
+          commissionPercent,
+          bidTimeoutMinutes,
+        },
+      });
+    } catch (e) {
+      updated = {
+        id: vType,
+        vehicleType: vType,
+        vehicleName: body.vehicleName || vType,
+        petrolPrice,
+        twoTOilRatio,
+        twoTOilPrice,
+        mileageKmPerLitre,
+        otherRunningCostPerKm,
+        fixedCostPerKm,
+        profitMultiplier,
+        baseChargeFirstKm,
+        minimumFare,
+        commissionPercent,
+        bidTimeoutMinutes,
+        isActive: true,
+      };
+    }
+
+    return this.computeFormulaBreakdown(updated);
+  }
+
+  @Post('fare-settings/calculate')
+  async calculateTripFare(@Body() body: { distanceKm: number; vehicleType?: string }) {
+    const distanceKm = Math.max(0, parseFloat(body.distanceKm as any) || 1.0);
+    const vType = body.vehicleType || 'THREE_WHEEL';
+
+    let config: any = null;
+    try {
+      config = await (this.prisma as any).fareSetting.findUnique({
+        where: { vehicleType: vType },
+      });
+    } catch {
+      // ignore
+    }
+
+    if (!config) {
+      config = {
+        vehicleType: vType,
+        vehicleName: vType === 'THREE_WHEEL' ? 'Three-Wheeler / Tuk Tuk' : vType,
+        petrolPrice: 370.0,
+        twoTOilRatio: vType === 'THREE_WHEEL' ? 0.02 : 0.0,
+        twoTOilPrice: 1500.0,
+        mileageKmPerLitre: vType === 'THREE_WHEEL' ? 25.0 : (vType === 'MOTORBIKE' ? 45.0 : 14.0),
+        otherRunningCostPerKm: 5.0,
+        fixedCostPerKm: 3.0,
+        profitMultiplier: 3.0,
+        baseChargeFirstKm: 150.0,
+        minimumFare: 150.0,
+        commissionPercent: 10.0,
+        bidTimeoutMinutes: 2.0,
+      };
+    }
+
+    return this.computeFormulaBreakdown(config, distanceKm);
+  }
+
+  // ─── Mathematical Formula Calculator Engine ─────────────────
+  private computeFormulaBreakdown(cfg: any, distanceKm?: number) {
+    const B = cfg.petrolPrice || 370.0;
+    const C = cfg.twoTOilRatio !== undefined ? cfg.twoTOilRatio : 0.02;
+    const D = cfg.twoTOilPrice || 1500.0;
+    const F = cfg.mileageKmPerLitre || 25.0;
+    const G = cfg.otherRunningCostPerKm || 5.0;
+    const H = cfg.fixedCostPerKm || 3.0;
+    const multiplier = cfg.profitMultiplier || 3.0;
+    const K = cfg.baseChargeFirstKm || 150.0;
+    const minFare = cfg.minimumFare || K;
+    const commissionPercent = cfg.commissionPercent !== undefined ? cfg.commissionPercent : 10.0;
+    const bidTimeoutMinutes = cfg.bidTimeoutMinutes !== undefined ? cfg.bidTimeoutMinutes : 2.0;
+
+    // Step 1 — Cost of the Fuel Mixture: A = B + (C * D)
+    const A = B + (C * D);
+
+    // Step 2 — Fuel Cost per Kilometre: E = A / F
+    const E = F > 0 ? A / F : 0;
+
+    // Step 3 — Total Operating Cost per Kilometre: I = E + G + H
+    const I = E + G + H;
+
+    // Step 4 — Rate Charged to the Customer per Kilometre: J = multiplier * I (Default: 3 * I)
+    const J = multiplier * I;
+
+    // Step 5 — Total Fare for Trip (M km): L = K + J * (M - 1) if M > 1, else K
+    let L = K;
+    const M = distanceKm !== undefined ? distanceKm : 1.0;
+    if (M > 1.0) {
+      L = K + J * (M - 1.0);
+    }
+    L = Math.max(L, minFare);
+
+    // Platform Commission & Rider Earnings Calculation
+    const commissionAmount = Math.round(L * (commissionPercent / 100) * 100) / 100;
+    const riderNetEarnings = Math.round((L - commissionAmount) * 100) / 100;
+    const bidTimeoutSeconds = Math.round(bidTimeoutMinutes * 60);
+
+    return {
+      ...cfg,
+      commissionPercent,
+      bidTimeoutMinutes,
+      bidTimeoutSeconds,
+      variables: {
+        A_fuelMixtureCostPerLitre: Math.round(A * 100) / 100, // Cost of petrol + 2T oil per litre
+        B_petrolPricePerLitre: B,
+        C_twoTOilRatioPerLitre: C,
+        D_twoTOilPricePerLitre: D,
+        E_fuelCostPerKm: Math.round(E * 100) / 100, // Fuel cost per 1 km
+        F_mileageKmPerLitre: F,
+        G_runningCostPerKm: G,
+        H_fixedCostPerKm: H,
+        I_driverOperatingCostPerKm: Math.round(I * 100) / 100, // Driver's true cost per 1 km
+        J_customerRatePerKm: Math.round(J * 100) / 100, // Final 1 km hire fee charged to customer (3 * I)
+        K_baseChargeFirstKm: K, // 1st km base fare
+        M_distanceKm: M,
+        L_totalTripFare: Math.round(L * 100) / 100, // Total trip passenger fare
+        commissionPercent,
+        commissionAmount,
+        riderNetEarnings,
+        bidTimeoutMinutes,
+        bidTimeoutSeconds,
+      },
+      formulaSummary: {
+        step1: `A = B + (C × D) = ${B} + (${C} × ${D}) = LKR ${A.toFixed(2)}/L`,
+        step2: `E = A / F = ${A.toFixed(2)} / ${F} = LKR ${E.toFixed(2)}/km`,
+        step3: `I = E + G + H = ${E.toFixed(2)} + ${G} + ${H} = LKR ${I.toFixed(2)}/km`,
+        step4: `J = ${multiplier} × I = ${multiplier} × ${I.toFixed(2)} = LKR ${J.toFixed(2)}/km`,
+        step5: `L = ${K} + ${J.toFixed(2)} × (${M} - 1) = LKR ${L.toFixed(2)}`,
+        commission: `Yaalu Commission (${commissionPercent}%): LKR ${commissionAmount.toFixed(2)} | Rider Net: LKR ${riderNetEarnings.toFixed(2)}`,
+        bidTimeout: `Bid Window: ${bidTimeoutMinutes} minutes (${bidTimeoutSeconds} seconds)`,
+      },
     };
   }
 

@@ -11,6 +11,7 @@ import { CustomersProxyController } from './customers/customers-proxy.controller
 import { InvoicesProxyController } from './invoices/invoices-proxy.controller';
 import { MerchantsProxyController } from './merchants/merchants-proxy.controller';
 import { DeliveriesProxyController } from './deliveries/deliveries-proxy.controller';
+import { RidersProxyController } from './riders/riders-proxy.controller';
 import { UploadModule } from './uploads/upload.module';
 import { ShopsModule } from './shops/shops.module';
 import { CardsModule } from './cards/cards.module';
@@ -42,6 +43,7 @@ import { DeliveryServiceService } from '@app/delivery-service/delivery-service.s
     InvoicesProxyController,
     MerchantsProxyController,
     DeliveriesProxyController,
+    RidersProxyController,
   ],
   providers: [
     ApiGatewayService,
