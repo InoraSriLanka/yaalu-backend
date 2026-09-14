@@ -216,7 +216,9 @@ export class AuthService {
     if (role === 'CUSTOMER') {
       try {
         const phone = (dto.phoneNumber || dto.contactNumber || dto.mobile || dto.phone || '').trim();
-        const photoInput = (dto.profilePicture || dto.profilePhoto || dto.avatar || '').trim(); const validPhoto = photoInput.startsWith('http') ? photoInput : null;
+        const photoInput = (dto.profilePicture || dto.profilePhoto || dto.avatar || '').trim();
+        const isUnsplash = photoInput.includes('images.unsplash.com');
+        const validPhoto = (photoInput.startsWith('http') && !isUnsplash) ? photoInput : null;
         const nic = dto.nicNumber || dto.nic || '';
 
         // Upsert customer profile
