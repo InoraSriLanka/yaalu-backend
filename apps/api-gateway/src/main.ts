@@ -15,8 +15,8 @@ async function bootstrap() {
   });
 
   // Increase payload size limit to 50MB for Cloudinary base64 image uploads
-  app.use(json({ limit: '50mb' }));
-  app.use(urlencoded({ extended: true, limit: '50mb' }));
+  app.use(json({ limit: '10mb' }));
+  app.use(urlencoded({ extended: true, limit: '10mb' }));
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
