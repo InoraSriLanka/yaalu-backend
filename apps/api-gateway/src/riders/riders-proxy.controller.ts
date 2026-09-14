@@ -95,14 +95,18 @@ export class RidersProxyController {
       body.fullName ||
       `${body.firstName || ''} ${body.lastName || ''}`.trim() ||
       'Rider Partner';
-    const email = (body.email || `${phone.replace(/[^0-9]/g, '') || Date.now()}@rider.yaalu.lk`).toLowerCase();
+    const providedEmail = body.email ? body.email.trim().toLowerCase() : null;
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    const defaultEmail = cleanPhone ? `${cleanPhone}@rider.yaalu.lk` : `${Date.now()}@rider.yaalu.lk`;
+    const email = providedEmail || defaultEmail;
 
     // Check if user already exists with this phone or email
     let user = await this.prisma.user.findFirst({
       where: {
         OR: [
-          { email },
-          { riderProfile: { phoneNumber: phone } },
+          ...(providedEmail ? [{ email: providedEmail }] : []),
+          ...(phone ? [{ riderProfile: { phoneNumber: phone } }] : []),
+          { email: defaultEmail },
         ],
       },
       include: { riderProfile: true },
@@ -120,9 +124,14 @@ export class RidersProxyController {
         include: { riderProfile: true },
       });
     } else {
-      await this.prisma.user.update({
+      const updateData: any = { fullName };
+      if (providedEmail && providedEmail !== user.email) {
+        updateData.email = providedEmail;
+      }
+      user = await this.prisma.user.update({
         where: { id: user.id },
-        data: { fullName },
+        data: updateData,
+        include: { riderProfile: true },
       });
     }
 
@@ -157,20 +166,35 @@ export class RidersProxyController {
   async registerStep2(@Body() body: any) {
     const phone = (body.phone || body.mobile || '').trim();
     const email = (body.email || '').trim().toLowerCase();
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
 
     let user = await this.prisma.user.findFirst({
       where: {
         OR: [
           ...(email ? [{ email }] : []),
-          ...(phone ? [{ riderProfile: { phoneNumber: phone } }, { email: `${phone.replace(/[^0-9]/g, '')}@rider.yaalu.lk` }] : []),
+          ...(phone ? [{ riderProfile: { phoneNumber: phone } }] : []),
+          ...(cleanPhone ? [{ email: `${cleanPhone}@rider.yaalu.lk` }] : []),
         ],
       },
       include: { riderProfile: true },
     });
 
     if (user && user.riderProfile) {
+      const profileId = user.riderProfile.id;
+      if (email && email.includes('@') && !email.endsWith('@rider.yaalu.lk') && email !== user.email) {
+        try {
+          user = await this.prisma.user.update({
+            where: { id: user.id },
+            data: { email },
+            include: { riderProfile: true },
+          });
+        } catch (e) {
+          console.warn('[Rider Register Step2] Could not update user email:', e);
+        }
+      }
+
       const updatedProfile = await this.prisma.riderProfile.update({
-        where: { id: user.riderProfile.id },
+        where: { id: profileId },
         data: {
           address: body.address || undefined,
           city: body.city || undefined,
@@ -189,20 +213,35 @@ export class RidersProxyController {
   async registerStep3(@Body() body: any) {
     const phone = (body.phone || body.mobile || '').trim();
     const email = (body.email || '').trim().toLowerCase();
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
 
     let user = await this.prisma.user.findFirst({
       where: {
         OR: [
           ...(email ? [{ email }] : []),
-          ...(phone ? [{ riderProfile: { phoneNumber: phone } }, { email: `${phone.replace(/[^0-9]/g, '')}@rider.yaalu.lk` }] : []),
+          ...(phone ? [{ riderProfile: { phoneNumber: phone } }] : []),
+          ...(cleanPhone ? [{ email: `${cleanPhone}@rider.yaalu.lk` }] : []),
         ],
       },
       include: { riderProfile: true },
     });
 
     if (user && user.riderProfile) {
+      const profileId = user.riderProfile.id;
+      if (email && email.includes('@') && !email.endsWith('@rider.yaalu.lk') && email !== user.email) {
+        try {
+          user = await this.prisma.user.update({
+            where: { id: user.id },
+            data: { email },
+            include: { riderProfile: true },
+          });
+        } catch (e) {
+          console.warn('[Rider Register Step3] Could not update user email:', e);
+        }
+      }
+
       const updatedProfile = await this.prisma.riderProfile.update({
-        where: { id: user.riderProfile.id },
+        where: { id: profileId },
         data: {
           vehicleType: body.vehicleType || 'MOTORBIKE',
           vehicleNumber: body.vehicleNumber || body.plateNumber || '',
@@ -221,20 +260,35 @@ export class RidersProxyController {
   async registerStep4(@Body() body: any) {
     const phone = (body.phone || body.mobile || '').trim();
     const email = (body.email || '').trim().toLowerCase();
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
 
     let user = await this.prisma.user.findFirst({
       where: {
         OR: [
           ...(email ? [{ email }] : []),
-          ...(phone ? [{ riderProfile: { phoneNumber: phone } }, { email: `${phone.replace(/[^0-9]/g, '')}@rider.yaalu.lk` }] : []),
+          ...(phone ? [{ riderProfile: { phoneNumber: phone } }] : []),
+          ...(cleanPhone ? [{ email: `${cleanPhone}@rider.yaalu.lk` }] : []),
         ],
       },
       include: { riderProfile: true },
     });
 
     if (user && user.riderProfile) {
+      const profileId = user.riderProfile.id;
+      if (email && email.includes('@') && !email.endsWith('@rider.yaalu.lk') && email !== user.email) {
+        try {
+          user = await this.prisma.user.update({
+            where: { id: user.id },
+            data: { email },
+            include: { riderProfile: true },
+          });
+        } catch (e) {
+          console.warn('[Rider Register Step4] Could not update user email:', e);
+        }
+      }
+
       const updatedProfile = await this.prisma.riderProfile.update({
-        where: { id: user.riderProfile.id },
+        where: { id: profileId },
         data: {
           licenseNumber: body.licenseNumber || '',
           licenseExpiry: body.licenseExpiry || '',
@@ -267,9 +321,10 @@ export class RidersProxyController {
       body.fullName ||
       `${body.firstName || ''} ${body.lastName || ''}`.trim() ||
       'Rider Partner';
-    const email = (
-      body.email || `${phone.replace(/[^0-9]/g, '') || Date.now()}@rider.yaalu.lk`
-    ).toLowerCase();
+    const providedEmail = body.email ? body.email.trim().toLowerCase() : null;
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    const defaultEmail = cleanPhone ? `${cleanPhone}@rider.yaalu.lk` : `${Date.now()}@rider.yaalu.lk`;
+    const email = providedEmail || defaultEmail;
 
     const passwordToHash = body.password || 'Temporary@123';
     const hashedPassword = await bcrypt.hash(passwordToHash, 10);
@@ -278,8 +333,9 @@ export class RidersProxyController {
     let user = await this.prisma.user.findFirst({
       where: {
         OR: [
-          { email },
+          ...(providedEmail ? [{ email: providedEmail }] : []),
           ...(phone ? [{ riderProfile: { phoneNumber: phone } }] : []),
+          { email: defaultEmail },
         ],
       },
       include: { riderProfile: true },
@@ -296,13 +352,19 @@ export class RidersProxyController {
         include: { riderProfile: true },
       });
     } else {
-      await this.prisma.user.update({
+      const emailToSet = (providedEmail && providedEmail.includes('@') && !providedEmail.endsWith('@rider.yaalu.lk'))
+        ? providedEmail
+        : user.email;
+
+      user = await this.prisma.user.update({
         where: { id: user.id },
         data: {
+          email: emailToSet,
           fullName,
           password: hashedPassword,
           role: 'RIDER',
         },
+        include: { riderProfile: true },
       });
     }
 
@@ -397,49 +459,52 @@ export class RidersProxyController {
     if (!identifier) {
       throw new BadRequestException('Mobile number or email is required');
     }
+    if (!body.password) {
+      throw new BadRequestException('Password is required');
+    }
 
-    const email = identifier.includes('@')
-      ? identifier.toLowerCase()
-      : `${identifier.replace(/[^0-9]/g, '')}@rider.yaalu.lk`;
+    const cleanDigits = identifier.replace(/[^0-9]/g, '');
+    const coreNumber = cleanDigits.length >= 9 ? cleanDigits.slice(-9) : cleanDigits;
+
+    const phoneVariations = Array.from(
+      new Set([
+        identifier,
+        cleanDigits,
+        coreNumber,
+        `+94${coreNumber}`,
+        `0${coreNumber}`,
+        `94${coreNumber}`,
+      ]),
+    ).filter(Boolean);
+
+    const emailVariations = Array.from(
+      new Set([
+        identifier.toLowerCase(),
+        ...phoneVariations.map((p) => `${p}@rider.yaalu.lk`),
+      ]),
+    ).filter(Boolean);
 
     let user = await this.prisma.user.findFirst({
       where: {
         OR: [
-          { email },
-          { riderProfile: { phoneNumber: identifier } },
+          { email: { in: emailVariations } },
+          { riderProfile: { phoneNumber: { in: phoneVariations } } },
         ],
       },
       include: { riderProfile: true },
     });
 
     if (!user) {
-      // Auto-create rider session for seamless demo experience
-      const hashedPassword = await bcrypt.hash(body.password || '123456', 10);
-      user = await this.prisma.user.create({
-        data: {
-          email,
-          fullName: 'Rider Partner',
-          role: 'RIDER',
-          password: hashedPassword,
-          riderProfile: {
-            create: {
-              fullName: 'Rider Partner',
-              phoneNumber: identifier,
-              vehicleType: 'MOTORBIKE',
-              vehicleNumber: 'WP BCD-1234',
-              licenseNumber: 'B1234567',
-              status: 'AVAILABLE',
-              isApproved: true,
-            },
-          },
-        },
-        include: { riderProfile: true },
-      });
-    } else if (body.password && user.password) {
-      const valid = await bcrypt.compare(body.password, user.password).catch(() => false);
-      if (!valid && body.password !== '123456' && body.password !== '000000') {
-        throw new UnauthorizedException('Invalid rider credentials');
-      }
+      throw new UnauthorizedException('Account not found. Please check your mobile number or email.');
+    }
+
+    if (!user.password) {
+      throw new UnauthorizedException('No password set for this account. Please verify via OTP or reset password.');
+    }
+
+    const valid = await bcrypt.compare(body.password, user.password).catch(() => false);
+    if (!valid) {
+      throw new UnauthorizedException('Incorrect password. Please enter your correct password.');
     }
 
     return this.formatRiderResponse(user, user.riderProfile);
