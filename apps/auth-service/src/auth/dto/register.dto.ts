@@ -22,7 +22,23 @@ export class RegisterDto {
 
   @IsOptional()
   @IsString()
+  fullName?: string;
+
+  @IsOptional()
+  @IsString()
   phoneNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  mobile?: string;
+
+  @IsOptional()
+  @IsString()
+  contactNumber?: string;
 
   @IsOptional()
   @IsString()
@@ -30,7 +46,15 @@ export class RegisterDto {
 
   @IsOptional()
   @IsString()
+  nic?: string;
+
+  @IsOptional()
+  @IsString()
   address?: string;
+
+  @IsOptional()
+  @IsString()
+  deliveryAddress?: string;
 
   @IsOptional()
   @IsString()
@@ -39,6 +63,14 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   profilePicture?: string;
+
+  @IsOptional()
+  @IsString()
+  profilePhoto?: string;
+
+  @IsOptional()
+  @IsString()
+  avatar?: string;
 
   @IsOptional()
   @IsString()
@@ -51,6 +83,10 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   plateNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  vehicleNumber?: string;
 
   @IsOptional()
   @IsString()

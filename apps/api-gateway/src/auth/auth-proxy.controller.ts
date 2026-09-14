@@ -31,7 +31,8 @@ export class AuthProxyController {
   @Post('register')
   async register(@Body() dto: RegisterDto) {
     try {
-      return await firstValueFrom(this.authClient.send('register', dto));
+      console.log('[AuthProxyController] sending register pattern to AUTH_SERVICE:', dto);
+      return await firstValueFrom(this.authClient.send({ cmd: 'register' }, dto));
     } catch (err: any) {
       const status = parseStatusCode(err, HttpStatus.BAD_REQUEST);
       const message = parseErrorMessage(err, 'Registration failed');
@@ -42,7 +43,7 @@ export class AuthProxyController {
   @Post('login')
   async login(@Body() dto: LoginDto) {
     try {
-      return await firstValueFrom(this.authClient.send('login', dto));
+      return await firstValueFrom(this.authClient.send({ cmd: 'login' }, dto));
     } catch (err: any) {
       const status = parseStatusCode(err, HttpStatus.UNAUTHORIZED);
       const message = parseErrorMessage(err, 'Invalid email or password');
