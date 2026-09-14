@@ -161,19 +161,7 @@ model OrderItem {
   @@map("order_items")
 }
 
-model Customer {
-  id         String   @id @default(uuid())
-  merchantId String   @default("default")
-  name       String
-  mobile     String?
-  email      String?
-  address    String?
-  notes      String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
 
-  @@map("customers")
-}
 
 enum InvoiceStatus {
   pending
