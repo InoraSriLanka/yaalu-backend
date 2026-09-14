@@ -1,4 +1,5 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { RpcException } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -15,11 +16,15 @@ export class AuthService {
   async register(dto: RegisterDto) {
     const existing = await this.usersRepository.findOne({ where: { email: dto.email } });
     if (existing) {
-      throw new ConflictException('Email is already registered');
+      throw new RpcException({ message: 'Email is already registered', statusCode: 409 });
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
-    const user = this.usersRepository.create({ email: dto.email, password: hashedPassword });
+    const user = this.usersRepository.create({
+      ...dto,
+      password: hashedPassword,
+      role: dto.role || 'customer',
+    });
     const saved = await this.usersRepository.save(user);
 
     const { password, ...result } = saved;
@@ -29,7 +34,7 @@ export class AuthService {
   async login(dto: LoginDto) {
     const user = await this.usersRepository.findOne({ where: { email: dto.email } });
     if (!user || !(await bcrypt.compare(dto.password, user.password))) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new RpcException({ message: 'Invalid email or password', statusCode: 401 });
     }
 
     const { password, ...result } = user;

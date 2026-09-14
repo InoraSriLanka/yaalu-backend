@@ -5,10 +5,12 @@ import { AUTH_SERVICE, AUTH_QUEUE } from '@app/common';
 import { ApiGatewayController } from './api-gateway.controller';
 import { ApiGatewayService } from './api-gateway.service';
 import { AuthProxyController } from './auth/auth-proxy.controller';
+import { UploadModule } from './uploads/upload.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    UploadModule,
     ClientsModule.registerAsync([
       {
         name: AUTH_SERVICE,
