@@ -1,3 +1,15 @@
+
+function validateProfilePicSize(pic: string | undefined) {
+  if (!pic || pic.startsWith('http://') || pic.startsWith('https://')) return;
+  const base64Data = pic.replace(/^data:image\/[a-zA-Z]+;base64,/, '');
+  const estimatedSizeBytes = (base64Data.length * 3) / 4;
+  if (estimatedSizeBytes > 5 * 1024 * 1024) {
+    throw new BadRequestException(
+      `Profile picture file size exceeds the 5MB maximum limit. (Provided ~${(estimatedSizeBytes / (1024 * 1024)).toFixed(2)}MB)`
+    );
+  }
+}
+
 import { ConflictException, Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '@app/common';
@@ -78,6 +90,7 @@ export class AuthService {
       where: {
         OR: [
           { email: { in: emailVariants } },
+          { customerProfile: { phoneNumber: { in: variantList } } },
           {
             shopProfile: {
               OR: [
@@ -460,7 +473,8 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const user = await this.findUserByPhoneOrEmail(dto.email);
+    const identifier = dto.email || dto.phoneNumber || dto.phone || dto.mobile || '';
+    const user = await this.findUserByPhoneOrEmail(identifier);
     if (!user || !(await bcrypt.compare(dto.password, user.password || ''))) {
       throw new UnauthorizedException('Invalid credentials');
     }
