@@ -35,15 +35,68 @@ export class DeliveryServiceService {
 
   // ---------------- Rides & Driver Bidding Services ----------------
 
+  private calcDistanceKm(lat1?: number, lon1?: number, lat2?: number, lon2?: number): number {
+    if (lat1 === undefined || lon1 === undefined || lat2 === undefined || lon2 === undefined) return 7.0;
+    if (isNaN(lat1) || isNaN(lon1) || isNaN(lat2) || isNaN(lon2)) return 7.0;
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const dist = R * c;
+    return dist > 0.1 ? dist : 1.0;
+  }
+
+  private normalizeVehicleType(raw?: string): string {
+    if (!raw) return 'THREE_WHEEL';
+    const clean = raw.trim().toUpperCase();
+    if (clean === 'BIKE' || clean === 'MOTORBIKE') return 'MOTORBIKE';
+    if (clean === 'FLEX' || clean === 'THREE_WHEEL' || clean === 'TUKTUK') return 'THREE_WHEEL';
+    if (clean === 'LUXURY' || clean === 'LUXURY_CAR' || clean === 'PREMIUM' || clean === 'LUX') return 'LUXURY_CAR';
+    if (clean === 'MINI' || clean === 'CAR' || clean === 'NORMAL_CAR') return 'CAR';
+    if (clean === 'VAN') return 'VAN';
+    return clean;
+  }
+
   async createRideRequest(dto: CreateRideRequestDto) {
     console.log('[createRideRequest DTO received]:', JSON.stringify(dto));
     const isBidding = dto.rideType === 'BIDDING';
 
-    // Calculate dynamic base fare based on vehicle type
-    let calculatedFare = 710.07;
-    const vType = (dto.selectedVehicleType || 'bike').toLowerCase();
-    if (vType === 'flex') calculatedFare = 1439.30;
-    if (vType === 'mini') calculatedFare = 1891.55;
+    const dbVehicleType = this.normalizeVehicleType(dto.selectedVehicleType);
+    const fareConfig = await this.prisma.fareSetting.findUnique({
+      where: { vehicleType: dbVehicleType },
+    });
+
+    if (!fareConfig) {
+      throw new NotFoundException(`Fare setting rate parameters not found in database for vehicle type: ${dbVehicleType}`);
+    }
+
+    const B = fareConfig.petrolPrice;
+    const C = fareConfig.twoTOilRatio;
+    const D = fareConfig.twoTOilPrice;
+    const F = fareConfig.mileageKmPerLitre;
+    const G = fareConfig.otherRunningCostPerKm;
+    const H = fareConfig.fixedCostPerKm;
+    const multiplier = fareConfig.profitMultiplier;
+    const K = fareConfig.baseChargeFirstKm;
+    const minFare = fareConfig.minimumFare;
+
+    const A = B + (C * D);
+    const E = F > 0 ? A / F : 0;
+    const I = E + G + H;
+    const J = multiplier * I;
+
+    const distanceKm = this.calcDistanceKm(dto.pickupLat, dto.pickupLng, dto.dropoffLat, dto.dropoffLng);
+    let calculatedFare = K;
+    if (distanceKm > 1.0) {
+      calculatedFare = K + J * (distanceKm - 1.0);
+    }
+    calculatedFare = Math.max(calculatedFare, minFare);
+    calculatedFare = Math.round(calculatedFare * 100) / 100;
+
+    const randomPin = Math.floor(1000 + Math.random() * 9000).toString();
 
     const ride = await this.prisma.rideRequest.create({
       data: {
@@ -59,9 +112,9 @@ export class DeliveryServiceService {
         tripCategory: (dto.tripCategory as any) || 'ONE_WAY',
         status: isBidding ? 'SEARCHING' : 'ACCEPTED',
         biddingTimerSeconds: 480,
-        startPin: '4200',
+        startPin: randomPin,
         etaMinutes: 15,
-        finalFare: isBidding ? 0 : calculatedFare,
+        finalFare: calculatedFare,
       },
     });
 
@@ -73,9 +126,9 @@ export class DeliveryServiceService {
             driverId: 'drv-ravi-101',
             driverName: 'Ravi S.',
             rating: 5.0,
-            vehicleModel: vType === 'flex' ? 'Toyota Prius - White' : (vType === 'mini' ? 'Suzuki Every - Red' : 'TVS King Tuk Tuk - Yellow'),
+            vehicleModel: dbVehicleType === 'THREE_WHEEL' ? 'TVS King Tuk Tuk - Yellow' : (dbVehicleType === 'CAR' ? 'Toyota Prius - White' : 'Yamaha FZ - Black'),
             vehicleNumber: 'WP CAH-1234',
-            proposedFare: Math.round(calculatedFare * 0.95),
+            proposedFare: Math.round(calculatedFare * 0.95 * 100) / 100,
             status: 'PENDING',
           },
           {
@@ -83,9 +136,9 @@ export class DeliveryServiceService {
             driverId: 'drv-kasun-102',
             driverName: 'Kasun P.',
             rating: 4.7,
-            vehicleModel: vType === 'flex' ? 'Honda Grace - Silver' : (vType === 'mini' ? 'Daihatsu Hijet - White' : 'Bajaj RE - Black'),
+            vehicleModel: dbVehicleType === 'THREE_WHEEL' ? 'Bajaj RE - Red' : (dbVehicleType === 'CAR' ? 'Honda Grace - Silver' : 'Honda Dio - Blue'),
             vehicleNumber: 'WP KAZ-5678',
-            proposedFare: Math.round(calculatedFare * 1.05),
+            proposedFare: Math.round(calculatedFare * 1.05 * 100) / 100,
             status: 'PENDING',
           },
         ],
