@@ -7,9 +7,9 @@ export const MAX_PROFILE_PIC_SIZE_BYTES = 5 * 1024 * 1024; // 5MB limit for secu
 export class UploadService {
   constructor() {
     cloudinary.config({
-      cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'yaalu',
-      api_key: process.env.CLOUDINARY_API_KEY || '138828845892141',
-      api_secret: process.env.CLOUDINARY_API_SECRET || 'UJOpZyU7E4sX2Z3-j_W0LkeP5XA',
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
     });
   }
 
