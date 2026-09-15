@@ -14,12 +14,16 @@ export class AuthController {
 
   @MessagePattern(MSG_PATTERNS.AUTH.REGISTER)
   @MessagePattern('register')
+  @MessagePattern({ cmd: 'register' })
+  @MessagePattern({ role: 'auth', cmd: 'register' })
   register(@Payload() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
   @MessagePattern(MSG_PATTERNS.AUTH.LOGIN)
   @MessagePattern('login')
+  @MessagePattern({ cmd: 'login' })
+  @MessagePattern({ role: 'auth', cmd: 'login' })
   login(@Payload() dto: LoginDto) {
     return this.authService.login(dto);
   }
