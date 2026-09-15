@@ -335,3 +335,20 @@ model RideFeedback {
 
   @@map("ride_feedbacks")
 }
+
+model Hire {
+  id                String   @id @default(uuid())
+  riderId           String   @map("rider_id")
+  riderName         String   @map("rider_name")
+  customerId        String   @map("customer_id")
+  customerName      String   @map("customer_name")
+  distanceKm        Float    @map("distance_km")
+  durationMinutes   Int      @map("duration_minutes")
+  fee               Decimal  @db.Decimal(10, 2) @map("fee")
+  vehicleType       String   @map("vehicle_type")
+  vehicleNumber     String   @map("vehicle_number")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("hires")
+}

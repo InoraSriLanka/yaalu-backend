@@ -766,4 +766,50 @@ export class AdminProxyController {
         : undefined,
     };
   }
+
+  // ─── Hire Management ─────────────────────────────────────────
+
+  @Get('hires')
+  async getAllHires() {
+    const hires = await this.prisma.hire.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+    return hires.map((h) => ({
+      id: h.id,
+      riderId: h.riderId,
+      riderName: h.riderName,
+      customerId: h.customerId,
+      customerName: h.customerName,
+      distanceKm: h.distanceKm,
+      durationMinutes: h.durationMinutes,
+      fee: Number(h.fee),
+      vehicleType: h.vehicleType,
+      vehicleNumber: h.vehicleNumber,
+      createdAt: h.createdAt,
+    }));
+  }
+
+  @Post('hires')
+  async createHire(
+    @Body()
+    body: {
+      riderId: string;
+      riderName: string;
+      customerId: string;
+      customerName: string;
+      distanceKm: number;
+      durationMinutes: number;
+      fee: number;
+      vehicleType: string;
+      vehicleNumber: string;
+    },
+  ) {
+    return this.prisma.hire.create({ data: body });
+  }
+
+  @Delete('hires/:id')
+  async deleteHire(@Param('id') id: string) {
+    await this.prisma.hire.delete({ where: { id } });
+    return { success: true };
+  }
 }
