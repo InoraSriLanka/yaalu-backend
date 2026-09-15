@@ -1,16 +1,21 @@
 import { Body, Controller, Get, Patch, Post, Put, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from '@app/auth-service/auth/auth.service';
+import { PrismaService } from '@app/common';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
+import * as bcrypt from 'bcrypt';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthProxyController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly prisma: PrismaService,
+  ) { }
 
   @Post('register')
   @ApiOperation({ summary: 'Register a new customer account' })
@@ -44,6 +49,45 @@ export class AuthProxyController {
   @ApiResponse({ status: 200, description: 'Return JWT token and user profile' })
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  @Post('admin-login')
+  @ApiOperation({ summary: 'Administrator login with email and password' })
+  @ApiResponse({ status: 200, description: 'Return JWT token and admin user profile' })
+  async adminLogin(@Body() body: { email: string; password?: string }) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: body.email.trim().toLowerCase() },
+    });
+
+    if (!user) {
+      throw new Error('Administrator account not found');
+    }
+
+    if (user.role !== 'ADMIN') {
+      throw new Error('Access denied. This account is not an administrator.');
+    }
+
+    if (user.password && body.password) {
+      const valid = await bcrypt.compare(body.password, user.password);
+      if (!valid) {
+        throw new Error('Invalid password');
+      }
+    }
+
+    const accessToken = 'admin-token-' + user.id;
+
+    return {
+      accessToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: 'System Administrator',
+        role: user.role,
+        status: 'ACTIVE',
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      },
+    };
   }
 
   @Post('forgot-password')
