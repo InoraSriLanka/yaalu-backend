@@ -14,8 +14,19 @@ export class ProductsService {
   async findAll(merchantId?: string, activeOnly = false) {
     const where: any = {};
     if (merchantId && merchantId !== 'default' && merchantId !== 'all') {
-      where.merchantId = merchantId;
+      const shop = await this.prisma.shopProfile.findFirst({
+        where: {
+          OR: [{ id: merchantId }, { userId: merchantId }],
+        },
+      });
+
+      const possibleMerchantIds = shop
+        ? Array.from(new Set([merchantId, shop.id, shop.userId]))
+        : [merchantId];
+
+      where.merchantId = { in: possibleMerchantIds };
     }
+
     if (activeOnly) {
       where.isActive = true;
     }

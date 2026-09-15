@@ -83,13 +83,6 @@ export class ShopsController {
 
   @Get(':id/products')
   async getShopProducts(@Param('id') id: string) {
-    const shop = await this.prisma.shopProfile.findFirst({
-      where: {
-        OR: [{ id }, { userId: id }],
-      },
-    });
-
-    const merchantId = shop ? shop.userId : id;
-    return this.productsService.findAll(merchantId, true);
+    return this.productsService.findAll(id, true);
   }
 }
