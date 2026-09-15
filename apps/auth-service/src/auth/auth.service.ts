@@ -1,3 +1,15 @@
+
+function validateProfilePicSize(pic: string | undefined) {
+  if (!pic || pic.startsWith('http://') || pic.startsWith('https://')) return;
+  const base64Data = pic.replace(/^data:image\/[a-zA-Z]+;base64,/, '');
+  const estimatedSizeBytes = (base64Data.length * 3) / 4;
+  if (estimatedSizeBytes > 5 * 1024 * 1024) {
+    throw new BadRequestException(
+      `Profile picture file size exceeds the 5MB maximum limit. (Provided ~${(estimatedSizeBytes / (1024 * 1024)).toFixed(2)}MB)`
+    );
+  }
+}
+
 import { v2 as cloudinary } from 'cloudinary';
 
 cloudinary.config({
@@ -110,6 +122,7 @@ export class AuthService {
       where: {
         OR: [
           { email: { in: emailVariants } },
+          { customerProfile: { phoneNumber: { in: variantList } } },
           {
             shopProfile: {
               OR: [
@@ -236,8 +249,18 @@ export class AuthService {
       try {
         const phone = (dto.phoneNumber || dto.contactNumber || dto.mobile || dto.phone || '').trim();
         const photoInput = (dto.profilePicture || dto.profilePhoto || dto.avatar || '').trim();
+        const isUnsplash = photoInput.includes('images.unsplash.com');
+        const validPhoto = (photoInput.startsWith('http') && !isUnsplash) ? photoInput : null;
         const validPhoto = await this.resolveCloudinaryPhoto(photoInput, 'yaalu/users');
-        const nic = dto.nicNumber || dto.nic || '';
+        validateProfilePicSize(photoInput);
+        const isUnsplash = photoInput.includes('images.unsplash.com');
+        let validPhoto: string | null = null;
+        if (photoInput.startsWith('http') && !isUnsplash) {
+          validPhoto = photoInput;
+        } else if (photoInput && !photoInput.startsWith('http')) {
+          validPhoto = await this.resolveCloudinaryPhoto(photoInput, 'yaalu/profiles/customers');
+        }
+
 
         // Upsert customer profile
         await this.prisma.customerProfile.upsert({
@@ -493,7 +516,8 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const user = await this.findUserByPhoneOrEmail(dto.email);
+    const identifier = dto.email || dto.phoneNumber || dto.phone || dto.mobile || '';
+    const user = await this.findUserByPhoneOrEmail(identifier);
     if (!user || !(await bcrypt.compare(dto.password, user.password || ''))) {
       throw new UnauthorizedException('Invalid credentials');
     }

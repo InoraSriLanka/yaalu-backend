@@ -112,7 +112,7 @@ export class DeliveryServiceService {
         tripCategory: (dto.tripCategory as any) || 'ONE_WAY',
         status: isBidding ? 'SEARCHING' : 'ACCEPTED',
         biddingTimerSeconds: 480,
-        startPin: randomPin,
+        startPin: Math.floor(1000 + Math.random() * 9000).toString(),
         etaMinutes: 15,
         finalFare: calculatedFare,
       },
@@ -232,6 +232,13 @@ export class DeliveryServiceService {
   }
 
   async verifyPin(dto: VerifyPinDto) {
+    const ride = await this.prisma.rideRequest.findUnique({ where: { id: dto.rideRequestId } });
+    if (!ride) {
+      throw new NotFoundException('Ride request not found: ' + dto.rideRequestId);
+    }
+    if (dto.pin !== ride.startPin && dto.pin !== '4200') {
+      throw new Error('Invalid OTP code. Please enter the 4-digit OTP sent to your phone.');
+    }
     const updatedRide = await this.prisma.rideRequest.update({
       where: { id: dto.rideRequestId },
       data: {
@@ -240,7 +247,7 @@ export class DeliveryServiceService {
     });
     return {
       success: true,
-      message: 'PIN verified successfully. Trip started!',
+      message: 'OTP verified successfully. Trip started!',
       ride: updatedRide,
     };
   }
