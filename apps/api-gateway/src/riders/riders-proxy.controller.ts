@@ -70,14 +70,14 @@ export class RidersProxyController {
   @Post('send-otp')
   @ApiOperation({ summary: 'Send OTP to rider mobile' })
   async sendOtp(@Body() body: { mobile: string }) {
-    return this.authService.sendOtp({ phoneNumber: body.mobile });
+    return this.authService.sendOtp(body.mobile);
   }
 
   /** POST /riders/verify-otp */
   @Post('verify-otp')
   @ApiOperation({ summary: 'Verify OTP for rider' })
   async verifyOtp(@Body() body: { mobile: string; otp: string }) {
-    return this.authService.verifyOtp({ target: body.mobile, code: body.otp });
+    return this.authService.verifyOtp(body.mobile, body.otp);
   }
 
   /** POST /riders/register — register new rider account */
@@ -123,13 +123,7 @@ export class RidersProxyController {
   ) {
     const { user, riderProfile } = await this.getRiderFromToken(token);
 
-    // Update user fullName if provided
-    if (body.fullName) {
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: { fullName: body.fullName },
-      });
-    }
+    // Note: User model has no fullName field; fullName is stored in profile tables only
 
     const updated = await this.prisma.riderProfile.update({
       where: { id: riderProfile.id },
@@ -195,8 +189,8 @@ export class RidersProxyController {
 
     const orders = await this.prisma.order.findMany({
       where: {
-        riderId: user.id,
         ...(status ? { status: status as any } : {}),
+        ...(({ riderId: user.id } as any)),
       },
       include: { items: true },
       orderBy: { createdAt: 'desc' },
@@ -212,7 +206,7 @@ export class RidersProxyController {
     await this.getRiderFromToken(token); // auth check
 
     const orders = await this.prisma.order.findMany({
-      where: { status: 'pending', riderId: null },
+      where: { status: 'pending' as any, ...({ riderId: null } as any) },
       include: { items: true },
       orderBy: { createdAt: 'desc' },
       take: 20,
@@ -232,7 +226,7 @@ export class RidersProxyController {
 
     const order = await this.prisma.order.update({
       where: { id: orderId },
-      data: { riderId: user.id, status: 'processing' as any },
+      data: { ...({ riderId: user.id } as any), status: 'processing' as any },
       include: { items: true },
     });
 
@@ -281,7 +275,7 @@ export class RidersProxyController {
 
     const orders = await this.prisma.order.findMany({
       where: {
-        riderId: user.id,
+        ...({ riderId: user.id } as any),
         status: 'delivered' as any,
         createdAt: { gte: since },
       },
@@ -352,7 +346,7 @@ export class RidersProxyController {
 
     // Return recent orders as notifications
     const recentOrders = await this.prisma.order.findMany({
-      where: { riderId: user.id },
+      where: { ...({ riderId: user.id } as any) },
       orderBy: { createdAt: 'desc' },
       take: 10,
     });

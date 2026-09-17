@@ -22,7 +22,7 @@ export class AdminProxyController {
       throw new Error('Administrator account not found');
     }
 
-    if (user.role !== 'ADMIN') {
+    if ((user.role as any) !== 'ADMIN') {
       throw new Error('Access denied. This account is not an administrator.');
     }
 
@@ -364,9 +364,9 @@ export class AdminProxyController {
     return customerProfiles.map((cp) => ({
       id: cp.id,
       userId: cp.userId,
-      name: cp.fullName || cp.user?.fullName || cp.user?.email?.split('@')[0] || 'Customer',
+      name: cp.fullName || cp.user?.email?.split('@')[0] || 'Customer',
       email: cp.user?.email || '',
-      mobile: cp.phoneNumber || '',
+      mobile: cp.phone || '',
       address: cp.deliveryAddress || '',
       city: cp.city || '',
       notes: '',

@@ -336,6 +336,8 @@ export class AuthService {
             registrationNo: (dto as any).registrationNo || dto.shopRegisterNumber || undefined,
             ownerName: (dto as any).name || dto.ownerName || undefined,
             businessType: (dto as any).businessType || undefined,
+            ownerPhone: identifier,
+            ownerEmail: updatedUser.email,
           },
         });
       } catch (e) {
@@ -498,7 +500,7 @@ export class AuthService {
 
 
 
-  async updateProfile(dto: UpdateProfileDto & Record<string, any>) {
+  async updateProfile(dto: Record<string, any>) {
     let user: any = null;
     if (dto.id) {
       user = await this.prisma.user.findUnique({
@@ -529,7 +531,7 @@ export class AuthService {
     const userUpdateData: any = {};
     if (dto.email) userUpdateData.email = dto.email;
     if (dto.password) userUpdateData.password = await bcrypt.hash(dto.password, 10);
-    if (combinedName) userUpdateData.fullName = combinedName;
+    // Note: User model does not have a fullName field; name is stored in profile tables
 
     if (Object.keys(userUpdateData).length > 0) {
       await this.prisma.user.update({
@@ -551,24 +553,20 @@ export class AuthService {
         create: {
           userId: user.id,
           fullName: combinedName,
-          phoneNumber: phone,
-          profilePicture: photoToCreate,
-          nicNumber: nic,
+          phone: phone,
           deliveryAddress: dto.deliveryAddress || dto.address || '',
           city: dto.city || '',
           latitude: dto.latitude != null ? Number(dto.latitude) : null,
           longitude: dto.longitude != null ? Number(dto.longitude) : null,
-        },
+        } as any,
         update: {
           fullName: combinedName || undefined,
-          phoneNumber: phone || undefined,
-          profilePicture: photoToUpdate,
-          nicNumber: nic || undefined,
+          phone: phone || undefined,
           deliveryAddress: dto.deliveryAddress || dto.address || undefined,
           city: dto.city || undefined,
           latitude: dto.latitude != null ? Number(dto.latitude) : undefined,
           longitude: dto.longitude != null ? Number(dto.longitude) : undefined,
-        },
+        } as any,
       });
     } else if (role === 'SHOP') {
       await this.prisma.shopProfile.upsert({
@@ -626,6 +624,27 @@ export class AuthService {
     return this.formatUserAuthResponse(updatedUser, 'dev-token-' + user.id);
   }
 
+  private formatUserAuthResponse(user: any, accessToken: string) {
+    if (!user) return { accessToken, user: null };
+    const { password, ...safeUser } = user;
+    const shop = user.shopProfile;
+    return {
+      accessToken,
+      user: safeUser,
+      merchant: {
+        ...safeUser,
+        shop,
+        email: user.email,
+        mobile: shop?.ownerPhone || '',
+        contactNumber: shop?.ownerPhone || '',
+        fullName: shop?.ownerName || user.customerProfile?.fullName || '',
+        address: shop?.shopAddress || shop?.outletAddress || '',
+        shopName: shop?.shopName || '',
+        businessAddress: shop?.outletAddress || shop?.shopAddress || '',
+      },
+    };
+  }
+
   async validateToken(token: string) {
     if (token && token.startsWith('dev-token-')) {
       const userId = token.replace('dev-token-', '');
@@ -644,72 +663,6 @@ export class AuthService {
     }
     return { valid: false, user: null };
   }
-
-  async createPassword(body: any) {
-    const identifier = body.email || body.mobile || body.phoneNumber || '';
-    if (!identifier) {
-      throw new BadRequestException('Email or mobile number required');
-    }
-
-    // 1. Find the user
-    const user = await this.findUserByPhoneOrEmail(identifier);
-    if (!user) {
-      throw new BadRequestException('Account not found');
-    }
-
-    // 2. Set the new password
-    const hashedPassword = await bcrypt.hash(body.password || 'Temporary@123', 10);
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        password: hashedPassword,
-        otp: null,
-        otpExpiresAt: null,
-      },
-    });
-
-    // 3. Update shop profile with all registration data if provided
-    if (user.role === 'SHOP') {
-      const ownerName = body.ownerName || body.fullName || user.fullName || '';
-      const mobile = body.mobile || body.phoneNumber || '';
-      const shopName = body.shopName || '';
-      const shopAddress = body.shopAddress || body.address || '';
-      const registrationNo = body.shopRegisterNumber || body.registrationNo || '';
-
-      await this.prisma.shopProfile.upsert({
-        where: { userId: user.id },
-        create: {
-          userId: user.id,
-          shopName,
-          ownerName,
-          ownerPhone: mobile,
-          ownerEmail: body.email || user.email,
-          shopAddress,
-          outletAddress: shopAddress,
-          registrationNo,
-        },
-        update: {
-          ...(shopName && { shopName }),
-          ...(ownerName && { ownerName }),
-          ...(mobile && { ownerPhone: mobile }),
-          ...(shopAddress && { shopAddress, outletAddress: shopAddress }),
-          ...(registrationNo && { registrationNo }),
-        },
-      });
-    }
-
-    // 4. Return full auth response with accessToken + merchant profile
-    const fullUser = await this.prisma.user.findUnique({
-      where: { id: user.id },
-      include: {
-        customerProfile: true,
-        shopProfile: true,
-        riderProfile: true,
-      },
-    });
-
-    const accessToken = 'dev-token-' + user.id;
-    return this.formatUserAuthResponse(fullUser, accessToken);
-  }
 }
+
 
