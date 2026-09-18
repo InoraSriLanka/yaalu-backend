@@ -248,11 +248,10 @@ export class AuthService {
     if (role === 'CUSTOMER') {
       try {
         const phone = (dto.phoneNumber || dto.contactNumber || dto.mobile || dto.phone || '').trim();
+        const nic = (dto.nicNumber || dto.nic || '').trim();
         const photoInput = (dto.profilePicture || dto.profilePhoto || dto.avatar || '').trim();
-        const isUnsplash = photoInput.includes('images.unsplash.com');
-        const validPhoto = (photoInput.startsWith('http') && !isUnsplash) ? photoInput : null;
-        const validPhoto = await this.resolveCloudinaryPhoto(photoInput, 'yaalu/users');
         validateProfilePicSize(photoInput);
+
         const isUnsplash = photoInput.includes('images.unsplash.com');
         let validPhoto: string | null = null;
         if (photoInput.startsWith('http') && !isUnsplash) {

@@ -367,27 +367,6 @@ export class ApiGatewayService implements OnModuleInit {
       },
     });
 
-    // ─── Seed Customers Table ────────────────────────────────────
-    await this.prisma.customer.create({
-      data: {
-        name: 'Tharindu Bandara',
-        mobile: '+94771234567',
-        email: 'tharindu.customer@yaalu.lk',
-        address: '24 Flower Road, Colombo 07',
-        notes: 'VIP Customer',
-      },
-    });
-
-    await this.prisma.customer.create({
-      data: {
-        name: 'Nadeesha Jayawardena',
-        mobile: '+94761234567',
-        email: 'nadeesha.customer@yaalu.lk',
-        address: '15 Havelock Road, Colombo 05',
-        notes: 'Regular Customer',
-      },
-    });
-
     this.logger.log('Demo platform data seeded successfully into PostgreSQL!');
   }
 }
