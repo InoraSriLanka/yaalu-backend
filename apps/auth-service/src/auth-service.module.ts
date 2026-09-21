@@ -19,7 +19,7 @@ import { RiderProfile } from './users/entities/rider-profile.entity';
         password: config.get<string>('DB_PASSWORD'),
         database: config.get<string>('DB_NAME'),
         entities: [User, RiderProfile],
-        synchronize: true, // dev only — replace with migrations before production
+        synchronize: false,
       }),
     }),
     AuthModule,

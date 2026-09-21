@@ -1,6 +1,6 @@
 import {
   Entity,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   Column,
   CreateDateColumn,
   UpdateDateColumn,
@@ -8,7 +8,7 @@ import {
 
 @Entity('rider_profiles')
 export class RiderProfile {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn()
   id: string;
 
   @Column({ name: 'user_id', unique: true })
@@ -20,8 +20,8 @@ export class RiderProfile {
   @Column({ name: 'phone_number', nullable: true })
   phoneNumber: string;
 
-  @Column({ name: 'profile_picture', nullable: true })
-  profilePicture: string;
+  @Column({ name: 'profile_photo_url', nullable: true })
+  profilePhotoUrl: string;
 
   @Column({ name: 'nic_number', nullable: true })
   nicNumber: string;
@@ -41,41 +41,47 @@ export class RiderProfile {
   @Column({ name: 'vehicle_model', nullable: true })
   vehicleModel: string;
 
-  @Column({ name: 'vehicle_photo', nullable: true })
-  vehiclePhoto: string;
-
-  @Column({ name: 'registration_doc', nullable: true })
-  registrationDoc: string;
-
   @Column({ name: 'license_number', nullable: true })
   licenseNumber: string;
 
-  @Column({ name: 'license_expiry_date', nullable: true })
-  licenseExpiryDate: string;
+  @Column({ name: 'license_expiry', nullable: true })
+  licenseExpiry: string;
 
-  @Column({ name: 'license_front_photo', nullable: true })
-  licenseFrontPhoto: string;
+  @Column({ name: 'license_front_url', nullable: true })
+  licenseFrontUrl: string;
 
-  @Column({ name: 'license_back_photo', nullable: true })
-  licenseBackPhoto: string;
-
-  @Column({ name: 'police_clearance_doc', nullable: true })
-  policeClearanceDoc: string;
+  @Column({ name: 'license_back_url', nullable: true })
+  licenseBackUrl: string;
 
   @Column({ name: 'bank_name', nullable: true })
   bankName: string;
 
-  @Column({ name: 'account_holder', nullable: true })
-  accountHolder: string;
+  @Column({ name: 'account_name', nullable: true })
+  accountName: string;
 
-  @Column({ name: 'account_number', nullable: true })
-  accountNumber: string;
+  @Column({ name: 'account_no', nullable: true })
+  accountNo: string;
 
-  @Column({ name: 'branch_code', nullable: true })
-  branchCode: string;
+  @Column({ name: 'account_branch', nullable: true })
+  accountBranch: string;
 
   @Column({ default: 'PENDING' })
   status: string;
+
+  @Column({ name: 'is_approved', default: false })
+  isApproved: boolean;
+
+  @Column({ name: 'deliveries_completed', default: 0 })
+  deliveriesCompleted: number;
+
+  @Column({ type: 'float', default: 5.0 })
+  rating: number;
+
+  @Column({ name: 'current_latitude', type: 'float', nullable: true })
+  currentLatitude: number;
+
+  @Column({ name: 'current_longitude', type: 'float', nullable: true })
+  currentLongitude: number;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

@@ -1,6 +1,6 @@
 import {
   Entity,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   Column,
   CreateDateColumn,
   UpdateDateColumn,
@@ -8,7 +8,7 @@ import {
 
 @Entity('users')
 export class User {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn()
   id: string;
 
   @Column({ unique: true })
@@ -17,8 +17,11 @@ export class User {
   @Column()
   password: string;
 
-  @Column({ default: 'customer' })
+  @Column({ default: 'CUSTOMER' })
   role: string;
+
+  @Column({ name: 'full_name', nullable: true })
+  fullName: string;
 
   @Column({ nullable: true })
   firstName: string;
@@ -83,9 +86,9 @@ export class User {
   @Column({ nullable: true })
   branchCode: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 }

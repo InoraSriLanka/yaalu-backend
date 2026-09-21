@@ -1,12 +1,14 @@
 import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class RegisterDto {
+  @IsOptional()
   @IsEmail()
-  email: string;
+  email?: string;
 
+  @IsOptional()
   @IsString()
   @MinLength(6)
-  password: string;
+  password?: string;
 
   @IsOptional()
   @IsString()
@@ -131,4 +133,26 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   branchCode?: string;
+
+  @IsOptional()
+  latitude?: number;
+
+  @IsOptional()
+  longitude?: number;
+
+  @IsOptional()
+  @IsString()
+  shopName?: string;
+
+  @IsOptional()
+  @IsString()
+  shopAddress?: string;
+
+  @IsOptional()
+  @IsString()
+  registrationNo?: string;
+
+  @IsOptional()
+  @IsString()
+  businessType?: string;
 }
