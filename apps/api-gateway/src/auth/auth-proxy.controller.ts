@@ -1,4 +1,4 @@
-import { Body, Controller, Inject, Post, Get, Patch, Query, Headers, HttpException, HttpStatus } from '@nestjs/common';
+import { Body, Controller, Inject, Post, Get, Patch, Param, Query, Headers, HttpException, HttpStatus } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
 import { AUTH_SERVICE } from '@app/common';
@@ -62,6 +62,18 @@ export class AuthProxyController {
     }
   }
 
+  @Patch('riders/me')
+  async updateRiderProfile(@Body() body: any, @Query('token') token?: string, @Headers('authorization') authHeader?: string) {
+    const userId = extractUserIdFromToken(token, authHeader);
+    try {
+      return await firstValueFrom(this.authClient.send({ cmd: 'update_rider_profile' }, { userId, ...body }));
+    } catch (err: any) {
+      const status = parseStatusCode(err, HttpStatus.BAD_REQUEST);
+      const message = parseErrorMessage(err, 'Failed to update rider profile');
+      throw new HttpException(message, status);
+    }
+  }
+
   @Patch('riders/me/status')
   async updateRiderStatus(@Body() body: { status: string }, @Query('token') token?: string, @Headers('authorization') authHeader?: string) {
     const userId = extractUserIdFromToken(token, authHeader);
@@ -82,6 +94,102 @@ export class AuthProxyController {
     } catch (err: any) {
       const status = parseStatusCode(err, HttpStatus.BAD_REQUEST);
       const message = parseErrorMessage(err, 'Failed to update rider location');
+      throw new HttpException(message, status);
+    }
+  }
+
+  @Get('riders/me/bank')
+  async getBankDetails(@Query('token') token?: string, @Headers('authorization') authHeader?: string) {
+    const userId = extractUserIdFromToken(token, authHeader);
+    try {
+      return await firstValueFrom(this.authClient.send({ cmd: 'get_bank_details' }, { userId }));
+    } catch (err: any) {
+      const status = parseStatusCode(err, HttpStatus.BAD_REQUEST);
+      const message = parseErrorMessage(err, 'Failed to fetch bank details');
+      throw new HttpException(message, status);
+    }
+  }
+
+  @Patch('riders/me/bank')
+  async updateBankDetails(@Body() body: any, @Query('token') token?: string, @Headers('authorization') authHeader?: string) {
+    const userId = extractUserIdFromToken(token, authHeader);
+    try {
+      return await firstValueFrom(this.authClient.send({ cmd: 'update_bank_details' }, { userId, ...body }));
+    } catch (err: any) {
+      const status = parseStatusCode(err, HttpStatus.BAD_REQUEST);
+      const message = parseErrorMessage(err, 'Failed to update bank details');
+      throw new HttpException(message, status);
+    }
+  }
+
+  @Get('riders/orders/available')
+  async getAvailableOrders(@Query('token') token?: string, @Headers('authorization') authHeader?: string) {
+    const userId = extractUserIdFromToken(token, authHeader);
+    try {
+      return await firstValueFrom(this.authClient.send({ cmd: 'get_available_orders' }, { userId }));
+    } catch (err: any) {
+      const status = parseStatusCode(err, HttpStatus.BAD_REQUEST);
+      const message = parseErrorMessage(err, 'Failed to fetch available orders');
+      throw new HttpException(message, status);
+    }
+  }
+
+  @Get('riders/me/orders')
+  async getRiderOrders(@Query('status') statusFilter?: string, @Query('token') token?: string, @Headers('authorization') authHeader?: string) {
+    const userId = extractUserIdFromToken(token, authHeader);
+    try {
+      return await firstValueFrom(this.authClient.send({ cmd: 'get_rider_orders' }, { userId, status: statusFilter }));
+    } catch (err: any) {
+      const status = parseStatusCode(err, HttpStatus.BAD_REQUEST);
+      const message = parseErrorMessage(err, 'Failed to fetch rider orders');
+      throw new HttpException(message, status);
+    }
+  }
+
+  @Patch('riders/orders/:id/accept')
+  async acceptOrder(@Param('id') id: string, @Query('token') token?: string, @Headers('authorization') authHeader?: string) {
+    const userId = extractUserIdFromToken(token, authHeader);
+    try {
+      return await firstValueFrom(this.authClient.send({ cmd: 'accept_order' }, { userId, orderId: id }));
+    } catch (err: any) {
+      const status = parseStatusCode(err, HttpStatus.BAD_REQUEST);
+      const message = parseErrorMessage(err, 'Failed to accept order');
+      throw new HttpException(message, status);
+    }
+  }
+
+  @Patch('riders/orders/:id/status')
+  async updateOrderStatus(@Param('id') id: string, @Body() body: { status: string }, @Query('token') token?: string, @Headers('authorization') authHeader?: string) {
+    const userId = extractUserIdFromToken(token, authHeader);
+    try {
+      return await firstValueFrom(this.authClient.send({ cmd: 'update_order_status' }, { userId, orderId: id, status: body.status }));
+    } catch (err: any) {
+      const status = parseStatusCode(err, HttpStatus.BAD_REQUEST);
+      const message = parseErrorMessage(err, 'Failed to update order status');
+      throw new HttpException(message, status);
+    }
+  }
+
+  @Get('riders/me/earnings')
+  async getRiderEarnings(@Query('period') period?: string, @Query('token') token?: string, @Headers('authorization') authHeader?: string) {
+    const userId = extractUserIdFromToken(token, authHeader);
+    try {
+      return await firstValueFrom(this.authClient.send({ cmd: 'get_rider_earnings' }, { userId, period }));
+    } catch (err: any) {
+      const status = parseStatusCode(err, HttpStatus.BAD_REQUEST);
+      const message = parseErrorMessage(err, 'Failed to fetch rider earnings');
+      throw new HttpException(message, status);
+    }
+  }
+
+  @Get('riders/me/notifications')
+  async getRiderNotifications(@Query('token') token?: string, @Headers('authorization') authHeader?: string) {
+    const userId = extractUserIdFromToken(token, authHeader);
+    try {
+      return await firstValueFrom(this.authClient.send({ cmd: 'get_rider_notifications' }, { userId }));
+    } catch (err: any) {
+      const status = parseStatusCode(err, HttpStatus.BAD_REQUEST);
+      const message = parseErrorMessage(err, 'Failed to fetch rider notifications');
       throw new HttpException(message, status);
     }
   }
