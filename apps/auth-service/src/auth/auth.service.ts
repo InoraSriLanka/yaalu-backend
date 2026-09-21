@@ -74,6 +74,9 @@ export class AuthService {
         profile = this.riderProfilesRepository.create({
           id: randomUUID(),
           userId: savedUser.id,
+          vehicleType: dto.vehicleType || 'MOTORBIKE',
+          vehicleNumber: dto.vehicleNumber || dto.plateNumber || 'PENDING',
+          licenseNumber: dto.licenseNumber || 'PENDING',
           createdAt: now,
           updatedAt: now,
         });
@@ -86,9 +89,9 @@ export class AuthService {
       profile.city = dto.city || profile.city || '';
       profile.address = dto.address || dto.deliveryAddress || profile.address || '';
       profile.vehicleType = dto.vehicleType || profile.vehicleType || 'MOTORBIKE';
-      profile.vehicleNumber = dto.vehicleNumber || dto.plateNumber || profile.vehicleNumber || '';
+      profile.vehicleNumber = dto.vehicleNumber || dto.plateNumber || profile.vehicleNumber || 'PENDING';
       profile.vehicleModel = dto.vehicleModel || profile.vehicleModel || '';
-      profile.licenseNumber = dto.licenseNumber || profile.licenseNumber || '';
+      profile.licenseNumber = dto.licenseNumber || profile.licenseNumber || 'PENDING';
       profile.licenseExpiry = dto.licenseExpiryDate || profile.licenseExpiry || '';
       profile.licenseFrontUrl = dto.licenseFrontPhoto || profile.licenseFrontUrl || '';
       profile.licenseBackUrl = dto.licenseBackPhoto || profile.licenseBackUrl || '';
@@ -192,5 +195,77 @@ export class AuthService {
       riderProfile: formattedRider,
       accessToken: 'token_' + user.id,
     };
+  }
+
+  async getRiderProfile(userId: string) {
+    let user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      const allUsers = await this.usersRepository.find();
+      user = allUsers[0] || null;
+    }
+    if (!user) {
+      throw new RpcException({ message: 'User profile not found', statusCode: 404 });
+    }
+
+    const riderProfile = await this.riderProfilesRepository.findOne({ where: { userId: user.id } });
+    const { password, ...result } = user;
+    const formattedRider = riderProfile ? {
+      ...riderProfile,
+      accountHolder: riderProfile.accountName,
+      accountNumber: riderProfile.accountNo,
+      branchCode: riderProfile.accountBranch,
+      profilePicture: riderProfile.profilePhotoUrl,
+      licenseExpiryDate: riderProfile.licenseExpiry,
+      licenseFrontPhoto: riderProfile.licenseFrontUrl,
+      licenseBackPhoto: riderProfile.licenseBackUrl,
+    } : undefined;
+
+    return {
+      ...result,
+      user: { ...result },
+      rider: formattedRider,
+      riderProfile: formattedRider,
+    };
+  }
+
+  async updateRiderStatus(userId: string, status: string) {
+    let profile = await this.riderProfilesRepository.findOne({ where: { userId } });
+    if (!profile) {
+      profile = this.riderProfilesRepository.create({
+        id: randomUUID(),
+        userId,
+        vehicleType: 'MOTORBIKE',
+        vehicleNumber: 'PENDING',
+        licenseNumber: 'PENDING',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
+
+    profile.status = status;
+    profile.updatedAt = new Date();
+    await this.riderProfilesRepository.save(profile);
+    return { success: true, status: profile.status };
+  }
+
+  async updateRiderLocation(userId: string, latitude: number, longitude: number) {
+    let profile = await this.riderProfilesRepository.findOne({ where: { userId } });
+    if (!profile) {
+      profile = this.riderProfilesRepository.create({
+        id: randomUUID(),
+        userId,
+        vehicleType: 'MOTORBIKE',
+        vehicleNumber: 'PENDING',
+        licenseNumber: 'PENDING',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
+
+    profile.currentLatitude = latitude;
+    profile.currentLongitude = longitude;
+    profile.updatedAt = new Date();
+    await this.riderProfilesRepository.save(profile);
+    return { success: true, latitude, longitude };
   }
 }
