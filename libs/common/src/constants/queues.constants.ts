@@ -15,3 +15,18 @@ export const PAYMENT_QUEUE = 'payment_queue';
 
 export const NOTIFICATION_SERVICE = 'NOTIFICATION_SERVICE';
 export const NOTIFICATION_QUEUE = 'notification_queue';
+
+export const MSG_PATTERNS = {
+  DELIVERY: {
+    BOOK: 'delivery.book',
+    GET_STATUS: 'delivery.getStatus',
+    CREATE_RIDE: 'delivery.createRide',
+    GET_RIDE: 'delivery.getRide',
+    POST_BID: 'delivery.postBid',
+    GET_BIDS: 'delivery.getBids',
+    ACCEPT_BID: 'delivery.acceptBid',
+    VERIFY_PIN: 'delivery.verifyPin',
+    COMPLETE_RIDE: 'delivery.completeRide',
+    SUBMIT_FEEDBACK: 'delivery.submitFeedback',
+  },
+};

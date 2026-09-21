@@ -21,6 +21,10 @@ import { ProductsService } from '@app/product-service/products/products.service'
 import { OrdersService } from '@app/order-service/orders/orders.service';
 import { CustomersService } from '@app/order-service/customers/customers.service';
 import { InvoicesService } from '@app/order-service/invoices/invoices.service';
+import { DeliveryServiceService } from '@app/delivery-service/delivery-service.service';
+import { DeliveriesProxyController } from './deliveries/deliveries-proxy.controller';
+import { ShopsController } from './shops/shops.controller';
+import { CardsController } from './cards/cards.controller';
 
 @Module({
   imports: [
@@ -38,6 +42,9 @@ import { InvoicesService } from '@app/order-service/invoices/invoices.service';
     UploadController,
     AdminController,
     RidersProxyController,
+    DeliveriesProxyController,
+    ShopsController,
+    CardsController,
   ],
   providers: [
     ApiGatewayService,
@@ -48,6 +55,7 @@ import { InvoicesService } from '@app/order-service/invoices/invoices.service';
     OrdersService,
     CustomersService,
     InvoicesService,
+    DeliveryServiceService,
   ],
 })
 export class ApiGatewayModule {}

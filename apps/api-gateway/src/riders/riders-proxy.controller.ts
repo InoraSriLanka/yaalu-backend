@@ -43,27 +43,96 @@ export class RidersProxyController {
     return { user, riderProfile: user.riderProfile };
   }
 
+  // ─── Helper: Find rider user by mobile/email ─────────────
+  private async findRiderByIdentifier(identifier: string) {
+    if (!identifier) return null;
+    const cleaned = identifier.replace(/[\s\-()]/g, '');
+
+    // Build phone variants (Sri Lanka numbers)
+    const variants = new Set<string>([identifier, cleaned]);
+    if (cleaned.startsWith('+94')) {
+      variants.add('0' + cleaned.substring(3));
+      variants.add(cleaned.substring(3));
+    } else if (cleaned.startsWith('0')) {
+      variants.add('+94' + cleaned.substring(1));
+      variants.add(cleaned.substring(1));
+    } else if (cleaned.startsWith('94')) {
+      variants.add('+' + cleaned);
+      variants.add('0' + cleaned.substring(2));
+    } else {
+      variants.add('+94' + cleaned);
+      variants.add('0' + cleaned);
+    }
+    const variantList = Array.from(variants);
+
+    // Try email first
+    const byEmail = await this.prisma.user.findFirst({
+      where: { email: { in: variantList } },
+      include: { riderProfile: true },
+    });
+    if (byEmail) return byEmail;
+
+    // Try phone stored as email (riders registered via OTP store phone as email)
+    const byPhoneEmail = await this.prisma.user.findFirst({
+      where: {
+        OR: variantList.map((v) => ({ email: v })),
+        role: 'RIDER',
+      },
+      include: { riderProfile: true },
+    });
+    if (byPhoneEmail) return byPhoneEmail;
+
+    return null;
+  }
+
   // ─── AUTH ────────────────────────────────────────────────
 
   /** POST /riders/login — login by mobile+password or OTP */
   @Post('login')
   @ApiOperation({ summary: 'Rider login with mobile/email and password' })
   async login(@Body() body: { mobile?: string; email?: string; password: string }) {
-    const identifier = body.mobile || body.email || '';
-    const user = await this.authService['findUserByPhoneOrEmail'](identifier);
+    const identifier = (body.mobile || body.email || '').trim();
+    if (!identifier) throw new Error('Mobile number or email is required');
 
-    if (!user) throw new Error('Rider account not found');
+    const user = await this.findRiderByIdentifier(identifier);
+
+    if (!user) throw new Error('Rider account not found. Please register first.');
     if (user.role !== 'RIDER') throw new Error('This account is not a rider account');
+    if (!user.password) throw new Error('No password set. Please login with OTP.');
 
-    const valid = await bcrypt.compare(body.password, user.password || '');
-    if (!valid) throw new Error('Invalid password');
+    const valid = await bcrypt.compare(body.password, user.password);
+    if (!valid) throw new Error('Invalid password. Please try again.');
 
     const fullUser = await this.prisma.user.findUnique({
       where: { id: user.id },
-      include: { customerProfile: true, shopProfile: true, riderProfile: true },
+      include: { riderProfile: true },
     });
 
-    return this.authService['formatUserAuthResponse'](fullUser, 'dev-token-' + user.id);
+    const riderProfile = fullUser?.riderProfile;
+    const token = 'rider-token-' + user.id;
+
+    return {
+      accessToken: token,
+      token,
+      rider: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        vehicleType: riderProfile?.vehicleType,
+        vehicleNumber: riderProfile?.vehicleNumber,
+        vehicleModel: riderProfile?.vehicleModel,
+        licenseNumber: riderProfile?.licenseNumber,
+        status: riderProfile?.status || 'AVAILABLE',
+        isApproved: riderProfile?.isApproved || false,
+        bankName: riderProfile?.bankName,
+        accountName: riderProfile?.accountName,
+        accountNo: riderProfile?.accountNo,
+        accountBranch: riderProfile?.accountBranch,
+        currentLatitude: riderProfile?.currentLatitude,
+        currentLongitude: riderProfile?.currentLongitude,
+      },
+    };
   }
 
   /** POST /riders/send-otp */
@@ -84,7 +153,86 @@ export class RidersProxyController {
   @Post('register')
   @ApiOperation({ summary: 'Register a new rider account' })
   async register(@Body() body: any) {
-    return this.authService.register({ ...body, role: 'RIDER' });
+    const mobile = (body.mobile || body.phone || body.contactNumber || '').trim();
+    const email = (body.email || mobile).trim(); // use phone as email if no email provided
+    const password = body.password || 'Temporary@123';
+
+    if (!mobile && !email) throw new Error('Mobile number or email is required');
+
+    // Check for existing user
+    const existing = await this.findRiderByIdentifier(email) ||
+      (mobile ? await this.findRiderByIdentifier(mobile) : null);
+
+    const bcryptLib = require('bcrypt');
+    const hashedPassword = await bcryptLib.hash(password, 10);
+
+    let user: any;
+    if (existing) {
+      user = await this.prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          email: email || existing.email,
+          fullName: body.fullName || body.name || existing.fullName,
+          role: 'RIDER',
+          password: hashedPassword,
+        },
+      });
+    } else {
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          fullName: body.fullName || body.name || '',
+          role: 'RIDER',
+          password: hashedPassword,
+        },
+      });
+    }
+
+    // Upsert RiderProfile
+    const vehicleType = body.vehicleType || body.vehicle_type || 'MOTORBIKE';
+    const vehicleNumber = body.vehicleNumber || body.vehicle_number || body.plateNumber || '';
+    const licenseNumber = body.licenseNumber || body.license_number || '';
+
+    await this.prisma.riderProfile.upsert({
+      where: { userId: user.id },
+      create: {
+        userId: user.id,
+        vehicleType,
+        vehicleNumber,
+        licenseNumber,
+        vehicleModel: body.vehicleModel || '',
+        isApproved: false,
+        status: 'PENDING',
+      },
+      update: {
+        vehicleType: body.vehicleType || undefined,
+        vehicleNumber: body.vehicleNumber || undefined,
+        licenseNumber: body.licenseNumber || undefined,
+        vehicleModel: body.vehicleModel || undefined,
+      },
+    });
+
+    const token = 'rider-token-' + user.id;
+    const fullUser = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      include: { riderProfile: true },
+    });
+    const riderProfile = fullUser?.riderProfile;
+
+    return {
+      accessToken: token,
+      token,
+      rider: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        vehicleType: riderProfile?.vehicleType,
+        vehicleNumber: riderProfile?.vehicleNumber,
+        status: riderProfile?.status || 'PENDING',
+        isApproved: riderProfile?.isApproved || false,
+      },
+    };
   }
 
   /** POST /riders/create-password */
@@ -364,27 +512,38 @@ export class RidersProxyController {
   // ─── Helpers ─────────────────────────────────────────────
 
   private formatRiderResponse(user: any, riderProfile: any) {
+    const profile = {
+      id: riderProfile?.id,
+      userId: user.id,
+      vehicleType: riderProfile?.vehicleType || '',
+      vehicleNumber: riderProfile?.vehicleNumber || '',
+      vehicleModel: riderProfile?.vehicleModel || '',
+      licenseNumber: riderProfile?.licenseNumber || '',
+      status: riderProfile?.status || 'PENDING',
+      isApproved: riderProfile?.isApproved || false,
+      bankName: riderProfile?.bankName || '',
+      accountName: riderProfile?.accountName || '',
+      accountNo: riderProfile?.accountNo || '',
+      accountBranch: riderProfile?.accountBranch || '',
+      currentLatitude: riderProfile?.currentLatitude,
+      currentLongitude: riderProfile?.currentLongitude,
+      createdAt: riderProfile?.createdAt,
+    };
+
     return {
+      // Top-level user fields
       id: user.id,
       email: user.email,
       fullName: user.fullName || '',
       role: user.role,
-      accessToken: 'dev-token-' + user.id,
+      accessToken: 'rider-token-' + user.id,
+      token: 'rider-token-' + user.id,
+      // Nested rider profile (for backward compatibility)
       rider: {
-        id: riderProfile.id,
-        vehicleType: riderProfile.vehicleType,
-        vehicleNumber: riderProfile.vehicleNumber,
-        vehicleModel: riderProfile.vehicleModel || '',
-        licenseNumber: riderProfile.licenseNumber,
-        status: riderProfile.status,
-        isApproved: riderProfile.isApproved,
-        bankName: riderProfile.bankName || '',
-        accountName: riderProfile.accountName || '',
-        accountNo: riderProfile.accountNo || '',
-        accountBranch: riderProfile.accountBranch || '',
-        currentLatitude: riderProfile.currentLatitude,
-        currentLongitude: riderProfile.currentLongitude,
-        createdAt: riderProfile.createdAt,
+        ...profile,
+        // Also expose user-level fields here so frontend can read from res.rider
+        email: user.email,
+        fullName: user.fullName || '',
       },
     };
   }

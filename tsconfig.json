@@ -29,7 +29,9 @@
       "@app/product-service": ["apps/product-service/src"],
       "@app/product-service/*": ["apps/product-service/src/*"],
       "@app/order-service": ["apps/order-service/src"],
-      "@app/order-service/*": ["apps/order-service/src/*"]
+      "@app/order-service/*": ["apps/order-service/src/*"],
+      "@app/delivery-service": ["apps/delivery-service/src"],
+      "@app/delivery-service/*": ["apps/delivery-service/src/*"]
     }
   }
 }
