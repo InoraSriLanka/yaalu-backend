@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: yaalu_auth
+      POSTGRES_DB: yaalu_db
     ports:
       - '5433:5432'
     volumes:
@@ -20,7 +20,7 @@ services:
     image: rabbitmq:3-management-alpine
     restart: unless-stopped
     ports:
-      - '5673:5672'
+      - '5735:5672'
       - '15672:15672'
     healthcheck:
       test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']

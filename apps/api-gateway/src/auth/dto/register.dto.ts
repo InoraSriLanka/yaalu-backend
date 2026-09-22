@@ -4,7 +4,7 @@ import { IsEmail, IsNumber, IsOptional, IsString } from 'class-validator';
 export class RegisterDto {
   @ApiProperty({ example: 'user@example.com' })
   @IsEmail()
-  email: string;
+  email?: string;
 
   @ApiProperty({ example: 'Password123!', required: false })
   @IsOptional()

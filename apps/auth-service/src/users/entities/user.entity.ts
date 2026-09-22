@@ -1,4 +1,14 @@
+import {
+  Entity,
+  PrimaryColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+
+@Entity('users')
 export class User {
+  @PrimaryColumn()
   id: string;
   email: string;
   fullName?: string;
