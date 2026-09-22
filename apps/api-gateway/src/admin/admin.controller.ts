@@ -390,14 +390,31 @@ export class AdminController {
   // ─── Products ────────────────────────────────────────────
   @Get('products')
   async getProducts() {
-    return this.prisma.product.findMany({ orderBy: { createdAt: 'desc' } });
+    const products = await this.prisma.product.findMany({ orderBy: { createdAt: 'desc' } });
+    
+    const shopProfiles = await this.prisma.shopProfile.findMany();
+    const shopMap = new Map(shopProfiles.map(s => [s.userId, s.shopName]));
+    const shopIdMap = new Map(shopProfiles.map(s => [s.id, s.shopName]));
+
+    return products.map(p => ({
+      ...p,
+      merchantName: shopMap.get(p.merchantId) || shopIdMap.get(p.merchantId) || 'Central Store'
+    }));
   }
 
   @Post('products')
   async createProduct(@Body() body: any) {
+    let targetMerchantId = body.merchantId || 'default';
+    if (targetMerchantId !== 'default') {
+      const shop = await this.prisma.shopProfile.findUnique({ where: { id: targetMerchantId } });
+      if (shop) {
+        targetMerchantId = shop.userId;
+      }
+    }
+
     return this.prisma.product.create({
       data: {
-        merchantId: body.merchantId || 'default',
+        merchantId: targetMerchantId,
         name: body.name,
         price: body.price !== undefined ? parseFloat(body.price) : 0,
         unit: body.unit || 'unit',

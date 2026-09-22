@@ -315,9 +315,60 @@ export class AdminProxyController {
   // ─── Products (ALL products, no merchant filter) ───────────
   @Get('products')
   async getProducts() {
-    return this.prisma.product.findMany({
+    const products = await this.prisma.product.findMany({
       orderBy: { createdAt: 'desc' },
     });
+
+    const shopProfiles = await this.prisma.shopProfile.findMany();
+    const shopMap = new Map(shopProfiles.map(s => [s.userId, s.shopName]));
+    // Also map by ShopProfile.id in case some products were created with it
+    const shopIdMap = new Map(shopProfiles.map(s => [s.id, s.shopName]));
+
+    return products.map(p => ({
+      ...p,
+      merchantName: shopMap.get(p.merchantId) || shopIdMap.get(p.merchantId) || 'Central Store'
+    }));
+  }
+
+  @Post('products')
+  async createProduct(@Body() body: any) {
+    // Admin Dashboard sends merchantId as ShopProfile.id
+    // But Shop App expects merchantId to be User.id
+    // We must find the ShopProfile and use its userId!
+    let targetMerchantId = body.merchantId || 'default';
+    if (targetMerchantId !== 'default') {
+      const shop = await this.prisma.shopProfile.findUnique({ where: { id: targetMerchantId } });
+      if (shop) {
+        targetMerchantId = shop.userId;
+      }
+    }
+
+    return this.prisma.product.create({
+      data: {
+        name: body.name,
+        price: body.price,
+        unit: body.unit || 'unit',
+        stock: body.stock || 0,
+        imageUrl: body.imageUrl,
+        description: body.description,
+        isActive: body.isActive !== false,
+        merchantId: targetMerchantId,
+      },
+    });
+  }
+
+  @Patch('products/:id')
+  async updateProduct(@Param('id') id: string, @Body() body: any) {
+    return this.prisma.product.update({
+      where: { id },
+      data: body,
+    });
+  }
+
+  @Delete('products/:id')
+  async deleteProduct(@Param('id') id: string) {
+    await this.prisma.product.delete({ where: { id } });
+    return { deleted: true };
   }
 
   // ─── Orders (ALL orders, no merchant filter) ───────────────

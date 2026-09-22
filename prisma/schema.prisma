@@ -126,6 +126,13 @@ model RiderProfile {
   currentLongitude Float?      @map("current_longitude")
   isApproved       Boolean     @default(false) @map("is_approved")
 
+  // Personal & Contact Details
+  phone            String?
+  address          String?
+  city             String?
+  nicNumber        String?     @map("nic_number")
+  profilePhotoUrl  String?     @map("profile_photo_url")
+
   // Bank Payout Details
   bankName         String?     @map("bank_name")
   accountName      String?     @map("account_name")
