@@ -40,6 +40,24 @@ services:
       PORT: 3001
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/yaalu_db?schema=public
       RABBITMQ_URL: amqp://rabbitmq:5672
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  auth-service:
+    build:
+      context: .
+      args:
+        APP_NAME: auth-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/yaalu_db?schema=public
+      RABBITMQ_URL: amqp://rabbitmq:5672
       DB_SSL: 'false'
       DB_HOST: postgres
       DB_PORT: 5432
@@ -52,11 +70,53 @@ services:
       rabbitmq:
         condition: service_healthy
 
-  auth-service:
+  product-service:
     build:
       context: .
       args:
-        APP_NAME: auth-service
+        APP_NAME: product-service
+    restart: unless-stopped
+    environment:
+      RABBITMQ_URL: amqp://rabbitmq:5672
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/yaalu_db?schema=public
+      DB_SSL: 'false'
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: yaalu_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  order-service:
+    build:
+      context: .
+      args:
+        APP_NAME: order-service
+    restart: unless-stopped
+    environment:
+      RABBITMQ_URL: amqp://rabbitmq:5672
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/yaalu_db?schema=public
+      DB_SSL: 'false'
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: yaalu_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  delivery-service:
+    build:
+      context: .
+      args:
+        APP_NAME: delivery-service
     restart: unless-stopped
     environment:
       RABBITMQ_URL: amqp://rabbitmq:5672
@@ -75,3 +135,4 @@ services:
 
 volumes:
   postgres_data:
+  uploads_data:

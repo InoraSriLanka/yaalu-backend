@@ -3,125 +3,64 @@ import { MessagePattern, Payload } from '@nestjs/microservices';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { SendOtpDto } from './dto/send-otp.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { MSG_PATTERNS } from '@app/common';
 
 @Controller()
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @MessagePattern(MSG_PATTERNS.AUTH.REGISTER)
+  @MessagePattern('register')
   @MessagePattern({ cmd: 'register' })
+  @MessagePattern({ role: 'auth', cmd: 'register' })
   register(@Payload() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
+  @MessagePattern(MSG_PATTERNS.AUTH.LOGIN)
+  @MessagePattern('login')
   @MessagePattern({ cmd: 'login' })
+  @MessagePattern({ role: 'auth', cmd: 'login' })
   login(@Payload() dto: LoginDto) {
     return this.authService.login(dto);
   }
 
-  @MessagePattern({ cmd: 'get_rider_profile' })
-  getRiderProfile(@Payload() data: { userId: string }) {
-    return this.authService.getRiderProfile(data.userId);
+  @MessagePattern('send-otp')
+  @MessagePattern(MSG_PATTERNS.AUTH.SEND_OTP)
+  @MessagePattern('send_otp')
+  sendOtp(@Payload() dto: SendOtpDto) {
+    return this.authService.sendOtp(dto);
   }
 
-  @MessagePattern({ cmd: 'update_rider_profile' })
-  updateRiderProfile(@Payload() data: { userId: string; [key: string]: any }) {
-    const { userId, ...rest } = data;
-    return this.authService.updateRiderProfile(userId, rest);
+  @MessagePattern('verify-otp')
+  @MessagePattern(MSG_PATTERNS.AUTH.VERIFY_OTP)
+  @MessagePattern('verify_otp')
+  verifyOtp(@Payload() dto: VerifyOtpDto) {
+    return this.authService.verifyOtp(dto);
   }
 
-  @MessagePattern({ cmd: 'update_rider_status' })
-  updateRiderStatus(@Payload() data: { userId: string; status: string }) {
-    return this.authService.updateRiderStatus(data.userId, data.status);
+  @MessagePattern(MSG_PATTERNS.AUTH.UPDATE_PROFILE)
+  @MessagePattern('update_profile')
+  updateProfile(@Payload() dto: UpdateProfileDto) {
+    return this.authService.updateProfile(dto);
   }
 
-  @MessagePattern({ cmd: 'update_rider_location' })
-  updateRiderLocation(@Payload() data: { userId: string; latitude: number; longitude: number }) {
-    return this.authService.updateRiderLocation(data.userId, data.latitude, data.longitude);
+  @MessagePattern(MSG_PATTERNS.AUTH.VALIDATE)
+  @MessagePattern('validate_token')
+  validateToken(@Payload() data: { token: string }) {
+    return this.authService.validateToken(data.token);
   }
 
-  @MessagePattern({ cmd: 'get_bank_details' })
-  getBankDetails(@Payload() data: { userId: string }) {
-    return this.authService.getBankDetails(data.userId);
+  @MessagePattern('forgot-password')
+  forgotPassword(@Payload() data: { email: string }) {
+    return this.authService.forgotPassword(data.email);
   }
 
-  @MessagePattern({ cmd: 'update_bank_details' })
-  updateBankDetails(@Payload() data: { userId: string; [key: string]: any }) {
-    const { userId, ...rest } = data;
-    return this.authService.updateBankDetails(userId, rest);
-  }
-
-  @MessagePattern({ cmd: 'get_available_orders' })
-  getAvailableOrders(@Payload() data: { userId: string }) {
-    return this.authService.getAvailableOrders(data.userId);
-  }
-
-  @MessagePattern({ cmd: 'get_rider_orders' })
-  getRiderOrders(@Payload() data: { userId: string; status?: string }) {
-    return this.authService.getRiderOrders(data.userId, data.status);
-  }
-
-  @MessagePattern({ cmd: 'accept_order' })
-  acceptOrder(@Payload() data: { userId: string; orderId: string }) {
-    return this.authService.acceptOrder(data.userId, data.orderId);
-  }
-
-  @MessagePattern({ cmd: 'update_order_status' })
-  updateOrderStatus(@Payload() data: { userId: string; orderId: string; status: string }) {
-    return this.authService.updateOrderStatus(data.userId, data.orderId, data.status);
-  }
-
-  @MessagePattern({ cmd: 'get_rider_earnings' })
-  getRiderEarnings(@Payload() data: { userId: string; period?: string }) {
-    return this.authService.getRiderEarnings(data.userId, data.period);
-  }
-
-  @MessagePattern({ cmd: 'get_rider_notifications' })
-  getRiderNotifications(@Payload() data: { userId: string }) {
-    return this.authService.getRiderNotifications(data.userId);
-  }
-
-  @MessagePattern({ cmd: 'get_shops' })
-  getShops() {
-    return this.authService.getShops();
-  }
-
-  @MessagePattern({ cmd: 'get_shop_by_id' })
-  getShopById(@Payload() data: { id: string }) {
-    return this.authService.getShopById(data.id);
-  }
-
-  @MessagePattern({ cmd: 'get_products' })
-  getProducts() {
-    return this.authService.getProducts();
-  }
-
-  @MessagePattern({ cmd: 'get_products_by_shop' })
-  getProductsByShop(@Payload() data: { shopId: string }) {
-    return this.authService.getProductsByShop(data.shopId);
-  }
-
-  @MessagePattern({ cmd: 'send_otp' })
-  sendOtp(@Payload() data: { phoneNumber?: string; email?: string }) {
-    return this.authService.sendOtp(data);
-  }
-
-  @MessagePattern({ cmd: 'verify_otp' })
-  verifyOtp(@Payload() data: { target?: string; code?: string }) {
-    return this.authService.verifyOtp(data);
-  }
-
-  @MessagePattern({ cmd: 'forgot_password' })
-  forgotPassword(@Payload() data: { email?: string }) {
-    return this.authService.forgotPassword(data);
-  }
-
-  @MessagePattern({ cmd: 'reset_password' })
-  resetPassword(@Payload() data: { email?: string; otp?: string; newPassword?: string }) {
-    return this.authService.resetPassword(data);
-  }
-
-  @MessagePattern({ cmd: 'create_shop' })
-  createShop(@Payload() dto: any) {
-    return this.authService.createShop(dto);
+  @MessagePattern('reset-password')
+  resetPassword(@Payload() data: { email: string; otp: string; newPassword: string }) {
+    return this.authService.resetPassword(data.email, data.otp, data.newPassword);
   }
 }

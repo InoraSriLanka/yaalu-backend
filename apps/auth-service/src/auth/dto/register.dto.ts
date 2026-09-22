@@ -5,19 +5,17 @@ export class RegisterDto {
   @IsEmail()
   email?: string;
 
+  @ApiProperty({ example: 'Password123!', required: false })
   @IsOptional()
   @IsString()
-  @MinLength(6)
   password?: string;
 
-  @IsOptional()
-  @IsString()
-  role?: string;
-
+  @ApiProperty({ example: 'Firstname', required: false })
   @IsOptional()
   @IsString()
   firstName?: string;
 
+  @ApiProperty({ example: 'Lastname', required: false })
   @IsOptional()
   @IsString()
   lastName?: string;
@@ -26,133 +24,73 @@ export class RegisterDto {
   @IsString()
   fullName?: string;
 
+  @ApiProperty({ example: '+94770000000', required: false })
   @IsOptional()
   @IsString()
   phoneNumber?: string;
 
-  @IsOptional()
-  @IsString()
-  phone?: string;
-
+  @ApiProperty({ example: '+94770000000', required: false })
   @IsOptional()
   @IsString()
   mobile?: string;
 
-  @IsOptional()
-  @IsString()
-  contactNumber?: string;
-
+  @ApiProperty({ example: '199012345678', required: false })
   @IsOptional()
   @IsString()
   nicNumber?: string;
 
-  @IsOptional()
-  @IsString()
-  nic?: string;
-
-  @IsOptional()
-  @IsString()
-  address?: string;
-
-  @IsOptional()
-  @IsString()
-  deliveryAddress?: string;
-
+  @ApiProperty({ example: 'Colombo 01', required: false })
   @IsOptional()
   @IsString()
   city?: string;
 
+  @ApiProperty({ example: 'https://example.com/avatar.jpg', required: false })
   @IsOptional()
   @IsString()
   profilePicture?: string;
 
+  @ApiProperty({ example: 'No. 123, Galle Road, Colombo 03', required: false })
   @IsOptional()
   @IsString()
-  profilePhoto?: string;
+  address?: string;
 
+  @ApiProperty({ example: 6.9271, required: false })
   @IsOptional()
-  @IsString()
-  avatar?: string;
-
-  @IsOptional()
-  @IsString()
-  vehicleType?: string;
-
-  @IsOptional()
-  @IsString()
-  vehicleModel?: string;
-
-  @IsOptional()
-  @IsString()
-  plateNumber?: string;
-
-  @IsOptional()
-  @IsString()
-  vehicleNumber?: string;
-
-  @IsOptional()
-  @IsString()
-  vehiclePhoto?: string;
-
-  @IsOptional()
-  @IsString()
-  registrationDoc?: string;
-
-  @IsOptional()
-  @IsString()
-  licenseNumber?: string;
-
-  @IsOptional()
-  @IsString()
-  licenseExpiryDate?: string;
-
-  @IsOptional()
-  @IsString()
-  licenseFrontPhoto?: string;
-
-  @IsOptional()
-  @IsString()
-  licenseBackPhoto?: string;
-
-  @IsOptional()
-  @IsString()
-  policeClearanceDoc?: string;
-
-  @IsOptional()
-  @IsString()
-  bankName?: string;
-
-  @IsOptional()
-  @IsString()
-  accountHolder?: string;
-
-  @IsOptional()
-  @IsString()
-  accountNumber?: string;
-
-  @IsOptional()
-  @IsString()
-  branchCode?: string;
-
-  @IsOptional()
+  @IsNumber()
   latitude?: number;
 
+  @ApiProperty({ example: 79.8612, required: false })
   @IsOptional()
+  @IsNumber()
   longitude?: number;
 
+  @ApiProperty({ example: 'customer', default: 'customer', required: false })
+  @IsOptional()
+  @IsString()
+  role?: string;
+
+  @ApiProperty({ example: 'My Shop', required: false })
   @IsOptional()
   @IsString()
   shopName?: string;
 
+  @ApiProperty({ example: 'Shop Address', required: false })
   @IsOptional()
   @IsString()
   shopAddress?: string;
 
+  @ApiProperty({ example: 'REG123', required: false })
   @IsOptional()
   @IsString()
-  registrationNo?: string;
+  shopRegisterNumber?: string;
 
+  @ApiProperty({ example: 'Owner Name', required: false })
   @IsOptional()
   @IsString()
-  businessType?: string;
+  ownerName?: string;
+
+  @ApiProperty({ example: '199012345678', required: false })
+  @IsOptional()
+  @IsString()
+  ownerIdNumber?: string;
 }

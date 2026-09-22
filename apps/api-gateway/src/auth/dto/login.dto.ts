@@ -1,4 +1,4 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString, IsNotEmpty, MinLength } from 'class-validator';
 
 export class LoginDto {
   @IsOptional()
@@ -7,7 +7,7 @@ export class LoginDto {
 
   @IsOptional()
   @IsString()
-  mobile?: string;
+  phoneNumber?: string;
 
   @IsOptional()
   @IsString()
@@ -15,8 +15,10 @@ export class LoginDto {
 
   @IsOptional()
   @IsString()
-  phoneNumber?: string;
+  mobile?: string;
 
+  @IsNotEmpty()
   @IsString()
+  @MinLength(6, { message: 'Password must be at least 6 characters long' })
   password: string;
 }
