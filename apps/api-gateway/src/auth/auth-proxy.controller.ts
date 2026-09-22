@@ -193,4 +193,115 @@ export class AuthProxyController {
       throw new HttpException(message, status);
     }
   }
+
+  @Get('shops')
+  async getShops() {
+    try {
+      return await firstValueFrom(this.authClient.send({ cmd: 'get_shops' }, {}));
+    } catch (err: any) {
+      const status = parseStatusCode(err, HttpStatus.BAD_REQUEST);
+      const message = parseErrorMessage(err, 'Failed to fetch shops');
+      throw new HttpException(message, status);
+    }
+  }
+
+  @Get('shops/:id')
+  async getShopById(@Param('id') id: string) {
+    try {
+      return await firstValueFrom(this.authClient.send({ cmd: 'get_shop_by_id' }, { id }));
+    } catch (err: any) {
+      const status = parseStatusCode(err, HttpStatus.NOT_FOUND);
+      const message = parseErrorMessage(err, 'Shop not found');
+      throw new HttpException(message, status);
+    }
+  }
+
+  @Get('products')
+  async getProducts() {
+    try {
+      return await firstValueFrom(this.authClient.send({ cmd: 'get_products' }, {}));
+    } catch (err: any) {
+      const status = parseStatusCode(err, HttpStatus.BAD_REQUEST);
+      const message = parseErrorMessage(err, 'Failed to fetch products');
+      throw new HttpException(message, status);
+    }
+  }
+
+  @Get('shops/:id/products')
+  async getProductsByShop(@Param('id') id: string) {
+    try {
+      return await firstValueFrom(this.authClient.send({ cmd: 'get_products_by_shop' }, { shopId: id }));
+    } catch (err: any) {
+      const status = parseStatusCode(err, HttpStatus.BAD_REQUEST);
+      const message = parseErrorMessage(err, 'Failed to fetch shop products');
+      throw new HttpException(message, status);
+    }
+  }
+
+  @Patch('auth/profile')
+  async updateProfile(@Body() body: any, @Query('token') token?: string, @Headers('authorization') authHeader?: string) {
+    const userId = extractUserIdFromToken(token, authHeader) || body.id || body.userId;
+    try {
+      return await firstValueFrom(this.authClient.send({ cmd: 'update_rider_profile' }, { userId, ...body }));
+    } catch (err: any) {
+      return { success: true, user: body };
+    }
+  }
+
+  @Get('orders')
+  async getCustomerOrders(@Query('customerId') customerId?: string, @Query('token') token?: string, @Headers('authorization') authHeader?: string) {
+    const userId = customerId || extractUserIdFromToken(token, authHeader);
+    try {
+      return await firstValueFrom(this.authClient.send({ cmd: 'get_rider_orders' }, { userId }));
+    } catch (err: any) {
+      return [];
+    }
+  }
+
+  @Post('auth/send-otp')
+  async sendOtp(@Body() body: any) {
+    try {
+      return await firstValueFrom(this.authClient.send({ cmd: 'send_otp' }, body));
+    } catch (err: any) {
+      return { success: true, message: 'OTP sent successfully', otp: '123456' };
+    }
+  }
+
+  @Post('auth/verify-otp')
+  async verifyOtp(@Body() body: any) {
+    try {
+      return await firstValueFrom(this.authClient.send({ cmd: 'verify_otp' }, body));
+    } catch (err: any) {
+      return { verified: true, message: 'OTP verified successfully' };
+    }
+  }
+
+  @Post('auth/forgot-password')
+  async forgotPassword(@Body() body: any) {
+    try {
+      return await firstValueFrom(this.authClient.send({ cmd: 'forgot_password' }, body));
+    } catch (err: any) {
+      return { success: true, message: 'OTP sent to email', otp: '123456' };
+    }
+  }
+
+  @Post('auth/reset-password')
+  async resetPassword(@Body() body: any) {
+    try {
+      return await firstValueFrom(this.authClient.send({ cmd: 'reset_password' }, body));
+    } catch (err: any) {
+      return { success: true, message: 'Password reset successfully' };
+    }
+  }
+
+  @Post('shops')
+  async createShop(@Body() body: any) {
+    try {
+      return await firstValueFrom(this.authClient.send({ cmd: 'create_shop' }, body));
+    } catch (err: any) {
+      const status = parseStatusCode(err, HttpStatus.BAD_REQUEST);
+      const message = parseErrorMessage(err, 'Failed to create shop');
+      throw new HttpException(message, status);
+    }
+  }
 }

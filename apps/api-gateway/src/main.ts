@@ -11,6 +11,6 @@ async function bootstrap() {
   app.use(urlencoded({ limit: '50mb', extended: true }));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 }
 bootstrap();

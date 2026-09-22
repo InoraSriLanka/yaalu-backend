@@ -79,4 +79,49 @@ export class AuthController {
   getRiderNotifications(@Payload() data: { userId: string }) {
     return this.authService.getRiderNotifications(data.userId);
   }
+
+  @MessagePattern({ cmd: 'get_shops' })
+  getShops() {
+    return this.authService.getShops();
+  }
+
+  @MessagePattern({ cmd: 'get_shop_by_id' })
+  getShopById(@Payload() data: { id: string }) {
+    return this.authService.getShopById(data.id);
+  }
+
+  @MessagePattern({ cmd: 'get_products' })
+  getProducts() {
+    return this.authService.getProducts();
+  }
+
+  @MessagePattern({ cmd: 'get_products_by_shop' })
+  getProductsByShop(@Payload() data: { shopId: string }) {
+    return this.authService.getProductsByShop(data.shopId);
+  }
+
+  @MessagePattern({ cmd: 'send_otp' })
+  sendOtp(@Payload() data: { phoneNumber?: string; email?: string }) {
+    return this.authService.sendOtp(data);
+  }
+
+  @MessagePattern({ cmd: 'verify_otp' })
+  verifyOtp(@Payload() data: { target?: string; code?: string }) {
+    return this.authService.verifyOtp(data);
+  }
+
+  @MessagePattern({ cmd: 'forgot_password' })
+  forgotPassword(@Payload() data: { email?: string }) {
+    return this.authService.forgotPassword(data);
+  }
+
+  @MessagePattern({ cmd: 'reset_password' })
+  resetPassword(@Payload() data: { email?: string; otp?: string; newPassword?: string }) {
+    return this.authService.resetPassword(data);
+  }
+
+  @MessagePattern({ cmd: 'create_shop' })
+  createShop(@Payload() dto: any) {
+    return this.authService.createShop(dto);
+  }
 }
