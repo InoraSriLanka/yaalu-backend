@@ -37,6 +37,12 @@ export class DeliveriesProxyController {
     return this.deliveryServiceService.createRideRequest(dto);
   }
 
+  @Get('rides/available')
+  @ApiOperation({ summary: 'Get available pending/searching rides' })
+  getAvailableRides() {
+    return this.deliveryServiceService.getAvailableRides();
+  }
+
   @Get('rides/:id')
   @ApiOperation({ summary: 'Get ride details and status' })
   getRide(@Param('id') id: string) {

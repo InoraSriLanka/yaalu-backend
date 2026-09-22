@@ -33,8 +33,11 @@ export class OrdersService {
     });
   }
 
-  async findAll(merchantId: string, status?: string) {
-    const where: any = { merchantId };
+  async findAll(merchantId: string | null, status?: string, customerId?: string) {
+    const where: any = {};
+    if (merchantId) where.merchantId = merchantId;
+    if (customerId) where.customerId = customerId;
+
     if (status && status.toLowerCase() !== 'all') {
       const validStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
       const normalized = status.toLowerCase();

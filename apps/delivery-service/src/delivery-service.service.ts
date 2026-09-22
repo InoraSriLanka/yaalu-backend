@@ -113,6 +113,15 @@ export class DeliveryServiceService {
     return ride;
   }
 
+  async getAvailableRides() {
+    return this.prisma.rideRequest.findMany({
+      where: {
+        status: { in: ['SEARCHING', 'PENDING'] }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
   async postDriverBid(dto: SubmitBidDto) {
     const bid = await this.prisma.driverBid.create({
       data: {

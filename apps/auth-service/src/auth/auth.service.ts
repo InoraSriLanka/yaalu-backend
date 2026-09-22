@@ -47,6 +47,7 @@ export class AuthService {
         OR: [
           { email: identifier },
           { email: cleaned },
+          { email: { in: variantList } },
           {
             shopProfile: {
               OR: [
@@ -55,6 +56,11 @@ export class AuthService {
               ],
             },
           },
+          {
+            customerProfile: {
+              phone: { in: variantList }
+            }
+          }
         ],
       },
       include: {
@@ -79,6 +85,7 @@ export class AuthService {
     const name = dto.name || dto.ownerName || dto.fullName || '';
 
     let user;
+    const requestedRole = dto.role || 'SHOP';
     if (existing) {
       user = await this.prisma.user.update({
         where: { id: existing.id },
@@ -87,13 +94,14 @@ export class AuthService {
           password: hashedPassword,
           otp,
           otpExpiresAt,
+          role: requestedRole,
         },
       });
     } else {
       user = await this.prisma.user.create({
         data: {
           email: dto.email,
-          role: 'SHOP',
+          role: requestedRole,
           password: hashedPassword,
           otp,
           otpExpiresAt,
@@ -101,34 +109,57 @@ export class AuthService {
       });
     }
 
-    // Upsert ShopProfile
-    try {
-      await this.prisma.shopProfile.upsert({
-        where: { userId: user.id },
-        create: {
-          userId: user.id,
-          shopName: dto.shopName || '',
-          shopAddress: dto.shopAddress || '',
-          outletAddress: dto.shopAddress || '',
-          registrationNo: dto.registrationNo || dto.shopRegisterNumber || '',
-          ownerName: name || '',
-          ownerEmail: dto.email || user.email,
-          ownerPhone: mobile || '',
-          businessType: dto.businessType || '',
-        },
-        update: {
-          shopName: dto.shopName || undefined,
-          shopAddress: dto.shopAddress || undefined,
-          outletAddress: dto.shopAddress || undefined,
-          registrationNo: dto.registrationNo || dto.shopRegisterNumber || undefined,
-          ownerName: name || undefined,
-          ownerEmail: dto.email || user.email || undefined,
-          ownerPhone: mobile || undefined,
-          businessType: dto.businessType || undefined,
-        },
-      });
-    } catch (err) {
-      console.error('[AuthService] Error creating shop profile:', err);
+    if (requestedRole === 'CUSTOMER') {
+      try {
+        await this.prisma.customerProfile.upsert({
+          where: { userId: user.id },
+          create: {
+            userId: user.id,
+            fullName: name,
+            phone: mobile,
+            deliveryAddress: dto.deliveryAddress || dto.address || '',
+            city: dto.city || '',
+          },
+          update: {
+            fullName: name || undefined,
+            phone: mobile || undefined,
+            deliveryAddress: dto.deliveryAddress || dto.address || undefined,
+            city: dto.city || undefined,
+          },
+        });
+      } catch (err) {
+        console.error('[AuthService] Error creating customer profile:', err);
+      }
+    } else {
+      // Upsert ShopProfile
+      try {
+        await this.prisma.shopProfile.upsert({
+          where: { userId: user.id },
+          create: {
+            userId: user.id,
+            shopName: dto.shopName || '',
+            shopAddress: dto.shopAddress || '',
+            outletAddress: dto.shopAddress || '',
+            registrationNo: dto.registrationNo || dto.shopRegisterNumber || '',
+            ownerName: name || '',
+            ownerEmail: dto.email || user.email,
+            ownerPhone: mobile || '',
+            businessType: dto.businessType || '',
+          },
+          update: {
+            shopName: dto.shopName || undefined,
+            shopAddress: dto.shopAddress || undefined,
+            outletAddress: dto.shopAddress || undefined,
+            registrationNo: dto.registrationNo || dto.shopRegisterNumber || undefined,
+            ownerName: name || undefined,
+            ownerEmail: dto.email || user.email || undefined,
+            ownerPhone: mobile || undefined,
+            businessType: dto.businessType || undefined,
+          },
+        });
+      } catch (err) {
+        console.error('[AuthService] Error creating shop profile:', err);
+      }
     }
 
     // Send SMS via Gateway API
@@ -136,11 +167,33 @@ export class AuthService {
       await this.smsService.sendOtp(mobile, otp);
     }
 
+    const accessToken = `dev-token-${user.id}`;
+    const { password: _pw, ...userResult } = user;
+    const extractedMobile = mobile;
+
+    const userData = {
+      ...userResult,
+      email: user.email,
+      mobile: extractedMobile,
+      contactNumber: extractedMobile,
+      phone: extractedMobile,
+      fullName: name,
+      address: dto.deliveryAddress || dto.address || dto.shopAddress || '',
+    };
+
     return {
-      message: 'OTP sent to your contact number',
+      message: 'Registration successful',
       mobile,
       contactNumber: mobile,
       otp,
+      accessToken,
+      access_token: accessToken,
+      user: userData,
+      merchant: {
+        ...userData,
+        shopName: dto.shopName || '',
+        businessAddress: dto.shopAddress || '',
+      }
     };
   }
 
@@ -405,27 +458,38 @@ export class AuthService {
       data: { otp: null, otpExpiresAt: null },
     });
 
-    const shop = await this.prisma.shopProfile.findUnique({
-      where: { userId: user.id },
-    });
+    const shop = user.shopProfile;
+    const customer = user.customerProfile;
 
     const accessToken = `dev-token-${user.id}`;
     const { password, ...userResult } = user;
 
+    const extractedMobile = customer?.phone || shop?.ownerPhone || mobile;
+    const fullName = customer?.fullName || shop?.ownerName || '';
+    const address = customer?.deliveryAddress || shop?.shopAddress || shop?.outletAddress || '';
+
+    const userData = {
+      ...userResult,
+      email: user.email,
+      mobile: extractedMobile,
+      contactNumber: extractedMobile,
+      phone: extractedMobile,
+      fullName,
+      address,
+    };
+
     return {
       accessToken,
+      access_token: accessToken,
+      user: userData,
       merchant: {
-        ...userResult,
+        ...userData,
         shop,
-        email: user.email,
-        mobile: shop?.ownerPhone || mobile,
-        contactNumber: shop?.ownerPhone || mobile,
-        fullName: shop?.ownerName || '',
-        address: shop?.shopAddress || shop?.outletAddress || '',
         shopName: shop?.shopName || '',
         businessAddress: shop?.outletAddress || shop?.shopAddress || '',
       },
     };
+
   }
 
   async login(dto: LoginDto) {
@@ -434,23 +498,34 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const shop = await this.prisma.shopProfile.findUnique({
-      where: { userId: user.id },
-    });
-
     const accessToken = `dev-token-${user.id}`;
     const { password, ...result } = user;
 
+    const shop = user.shopProfile;
+    const customer = user.customerProfile;
+    const rider = user.riderProfile;
+
+    const mobile = customer?.phone || shop?.ownerPhone || '';
+    const fullName = customer?.fullName || shop?.ownerName || '';
+    const address = customer?.deliveryAddress || shop?.shopAddress || shop?.outletAddress || '';
+
+    const userData = {
+      ...result,
+      email: user.email,
+      mobile,
+      contactNumber: mobile,
+      phone: mobile,
+      fullName,
+      address,
+    };
+
     return {
       accessToken,
+      access_token: accessToken,
+      user: userData,
       merchant: {
-        ...result,
+        ...userData,
         shop,
-        email: user.email,
-        mobile: shop?.ownerPhone || '',
-        contactNumber: shop?.ownerPhone || '',
-        fullName: shop?.ownerName || '',
-        address: shop?.shopAddress || shop?.outletAddress || '',
         shopName: shop?.shopName || '',
         businessAddress: shop?.outletAddress || shop?.shopAddress || '',
       },

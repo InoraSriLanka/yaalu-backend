@@ -16,8 +16,12 @@ export class OrdersProxyController {
 
   @Post()
   create(@Req() req: any, @Body() body: any) {
-    const merchantId = extractUserId(req);
-    return this.ordersService.create({ ...body, merchantId });
+    const callerId = extractUserId(req);
+    // If body doesn't provide merchantId, fallback to callerId (backward compat)
+    const merchantId = body.merchantId || callerId;
+    // Set customerId to the caller if not already set by admin
+    const customerId = body.customerId || callerId;
+    return this.ordersService.create({ ...body, merchantId, customerId });
   }
 
   @Get('stats')
@@ -27,9 +31,11 @@ export class OrdersProxyController {
   }
 
   @Get()
-  findAll(@Req() req: any, @Query('status') status?: string) {
-    const merchantId = extractUserId(req);
-    return this.ordersService.findAll(merchantId, status);
+  findAll(@Req() req: any, @Query('status') status?: string, @Query('customerId') qCustomerId?: string) {
+    const callerId = extractUserId(req);
+    // Support fetching orders for either a shop (merchantId) or a customer (customerId)
+    const queryForCustomer = qCustomerId === callerId;
+    return this.ordersService.findAll(queryForCustomer ? null : callerId, status, queryForCustomer ? callerId : undefined);
   }
 
   @Get(':id')

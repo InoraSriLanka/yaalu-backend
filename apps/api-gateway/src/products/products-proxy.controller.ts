@@ -20,9 +20,9 @@ export class ProductsProxyController {
   }
 
   @Get()
-  findAll(@Req() req: any, @Query('activeOnly') activeOnly?: string) {
+  findAll(@Req() req: any, @Query('activeOnly') activeOnly?: string, @Query('global') isGlobal?: string) {
     const merchantId = extractUserId(req);
-    return this.productsService.findAll(merchantId, activeOnly === 'true');
+    return this.productsService.findAll(isGlobal === 'true' ? null : merchantId, activeOnly !== 'false');
   }
 
   @Get(':id')
