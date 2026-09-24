@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { PrismaService } from '@app/common';
 import { BookDeliveryDto } from './dto/book-delivery.dto';
 import {
@@ -9,9 +9,22 @@ import {
   SubmitFeedbackDto,
 } from './dto/ride-request.dto';
 
+// Interface to avoid circular deps — gateway is injected from api-gateway layer
+export interface IRidesGateway {
+  broadcastNewHireRequest(rideRequest: any): void;
+}
+
 @Injectable()
 export class DeliveryServiceService {
+  // The gateway is optionally injected; in standalone (non-gateway) mode it's null
+  private ridesGateway: IRidesGateway | null = null;
+
   constructor(private readonly prisma: PrismaService) {}
+
+  /** Called by api-gateway module to wire-up the live socket gateway */
+  setRidesGateway(gateway: IRidesGateway) {
+    this.ridesGateway = gateway;
+  }
 
   async bookDelivery(dto: BookDeliveryDto) {
     return {
@@ -92,7 +105,12 @@ export class DeliveryServiceService {
       });
     }
 
-    return this.getRideRequest(ride.id);
+    // 🔔 Broadcast to all connected rider clients in real-time
+    const createdRide = await this.getRideRequest(ride.id);
+    if (this.ridesGateway) {
+      this.ridesGateway.broadcastNewHireRequest(createdRide);
+    }
+    return createdRide;
   }
 
   async getRideRequest(id: string) {

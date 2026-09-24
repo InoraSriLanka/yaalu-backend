@@ -356,7 +356,6 @@ export class RidersProxyController {
     const orders = await this.prisma.order.findMany({
       where: {
         ...(status ? { status: status as any } : {}),
-        ...(({ riderId: user.id } as any)),
       },
       include: { items: true },
       orderBy: { createdAt: 'desc' },
@@ -365,23 +364,28 @@ export class RidersProxyController {
     return orders.map((o) => this.formatOrder(o));
   }
 
-  /** GET /riders/orders/available?token=xxx — all pending orders (new requests) */
   @Get('orders/available')
   @ApiOperation({ summary: 'Get available orders for bidding' })
   async getAvailableOrders(@Query('token') token: string) {
     await this.getRiderFromToken(token); // auth check
 
-    const orders = await this.prisma.order.findMany({
-      where: { status: 'pending' as any, ...({ riderId: null } as any) },
-      include: { items: true },
+    const rides = await this.prisma.rideRequest.findMany({
+      where: { status: 'SEARCHING' },
       orderBy: { createdAt: 'desc' },
       take: 20,
     });
 
-    return orders.map((o) => this.formatOrder(o));
+    return rides.map((r) => ({
+      id: r.id,
+      orderNumber: `YL-${r.id.substring(0, 4).toUpperCase()}`,
+      fare: r.finalFare || 1000,
+      pickupAddress: r.pickupAddress || 'Customer Location',
+      dropoffAddress: r.dropoffAddress || 'Destination',
+      status: r.status,
+      rideType: r.rideType || 'STANDARD',
+    }));
   }
 
-  /** PATCH /riders/orders/:orderId/accept?token=xxx */
   @Patch('orders/:orderId/accept')
   @ApiOperation({ summary: 'Accept a direct order' })
   async acceptOrder(
@@ -390,13 +394,20 @@ export class RidersProxyController {
   ) {
     const { user } = await this.getRiderFromToken(token);
 
-    const order = await this.prisma.order.update({
+    const ride = await this.prisma.rideRequest.update({
       where: { id: orderId },
-      data: { ...({ riderId: user.id } as any), status: 'processing' as any },
-      include: { items: true },
+      data: { status: 'ACCEPTED', acceptedDriverId: user.id },
     });
 
-    return this.formatOrder(order);
+    return {
+      id: ride.id,
+      orderNumber: `YL-${ride.id.substring(0, 4).toUpperCase()}`,
+      fare: ride.finalFare || 1000,
+      pickupAddress: ride.pickupAddress,
+      dropoffAddress: ride.dropoffAddress,
+      status: ride.status,
+      rideType: ride.rideType,
+    };
   }
 
   /** PATCH /riders/orders/:orderId/status?token=xxx */
@@ -441,7 +452,6 @@ export class RidersProxyController {
 
     const orders = await this.prisma.order.findMany({
       where: {
-        ...({ riderId: user.id } as any),
         status: 'delivered' as any,
         createdAt: { gte: since },
       },

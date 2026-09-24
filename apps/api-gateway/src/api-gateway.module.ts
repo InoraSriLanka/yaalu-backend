@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { Module, OnModuleInit } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from '@app/common';
 import { ApiGatewayController } from './api-gateway.controller';
@@ -12,6 +13,7 @@ import { MerchantsProxyController } from './merchants/merchants-proxy.controller
 import { UploadController } from './upload/upload.controller';
 import { AdminController } from './admin/admin.controller';
 import { RidersProxyController } from './riders/riders-proxy.controller';
+import { RidesGateway } from './rides/rides.gateway';
 
 // Import services directly (monolith mode — no RabbitMQ needed)
 import { AuthService } from '@app/auth-service/auth/auth.service';
@@ -56,6 +58,20 @@ import { CardsController } from './cards/cards.controller';
     CustomersService,
     InvoicesService,
     DeliveryServiceService,
+    RidesGateway, // 🔔 Real-time Socket.io Gateway
   ],
 })
-export class ApiGatewayModule {}
+export class ApiGatewayModule implements OnModuleInit {
+  constructor(
+    private readonly moduleRef: ModuleRef,
+  ) {}
+
+  /** Wire the RidesGateway into DeliveryServiceService after module init */
+  onModuleInit() {
+    const deliveryService = this.moduleRef.get(DeliveryServiceService, { strict: false });
+    const ridesGateway = this.moduleRef.get(RidesGateway, { strict: false });
+    if (deliveryService && ridesGateway) {
+      deliveryService.setRidesGateway(ridesGateway);
+    }
+  }
+}

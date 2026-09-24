@@ -179,6 +179,7 @@ model Order {
   merchantId   String      @default("default")
   customerId   String?
   customerName String?
+  riderId      String?     @map("rider_id")
   items        OrderItem[]
   totalAmount  Decimal     @default(0) @db.Decimal(10, 2)
   status       OrderStatus @default(pending)

@@ -10,7 +10,7 @@
     "format": "prettier --write \"apps/**/*.ts\" \"libs/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
-    "seed": "ts-node prisma/seed.ts",
+    "seed": "ts-node -r tsconfig-paths/register prisma/seed.ts",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/apps/api-gateway/main",
     "start:gateway": "nest start api-gateway --watch",
@@ -25,8 +25,7 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./apps/api-gateway/test/jest-e2e.json",
-    "seed": "ts-node -r tsconfig-paths/register prisma/seed.ts"
+    "test:e2e": "jest --config ./apps/api-gateway/test/jest-e2e.json"
   },
   "dependencies": {
     "@nestjs/common": "^11.2.3",
@@ -34,16 +33,20 @@
     "@nestjs/core": "^11.2.3",
     "@nestjs/microservices": "^11.2.3",
     "@nestjs/platform-express": "^11.2.3",
+    "@nestjs/platform-socket.io": "^11.2.5",
     "@nestjs/swagger": "^11.4.7",
+    "@nestjs/websockets": "^11.2.5",
     "@prisma/client": "^5.22.0",
     "amqp-connection-manager": "^5.0.0",
     "amqplib": "^2.0.1",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
+    "cloudinary": "^2.11.0",
     "multer": "^1.4.5-lts.2",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -71,7 +74,8 @@
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.3",
-    "typescript-eslint": "^8.20.0"
+    "typescript-eslint": "^8.20.0",
+    "webpack": "^5.111.1"
   },
   "jest": {
     "moduleFileExtensions": [
