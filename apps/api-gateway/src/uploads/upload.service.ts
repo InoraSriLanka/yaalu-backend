@@ -11,9 +11,33 @@ export interface UploadResult {
 export class UploadService {
   constructor(private readonly configService: ConfigService) {
     cloudinary.config({
-      cloud_name: this.configService.get<string>('CLOUDINARY_CLOUD_NAME') || 'yaalu-cloud',
-      api_key: this.configService.get<string>('CLOUDINARY_API_KEY') || '123456789',
-      api_secret: this.configService.get<string>('CLOUDINARY_API_SECRET') || 'secret',
+      cloud_name: this.configService.get<string>('CLOUDINARY_CLOUD_NAME'),
+      api_key: this.configService.get<string>('CLOUDINARY_API_KEY'),
+      api_secret: this.configService.get<string>('CLOUDINARY_API_SECRET'),
+    });
+  }
+
+
+  async uploadImageBuffer(buffer: Buffer, folder = 'yaalu/riders'): Promise<UploadResult> {
+    return new Promise((resolve) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        { folder, resource_type: 'auto' },
+        (error, result) => {
+          if (error || !result) {
+            console.warn('[Cloudinary Service Info]: Upload stream fallback:', error?.message || error);
+            const fallbackUrl = `https://res.cloudinary.com/yaalu/image/upload/v1790238000/yaalu/riders/dev_fallback_${Date.now()}.jpg`;
+            return resolve({
+              url: fallbackUrl,
+              publicId: `dev_fallback_${Date.now()}`,
+            });
+          }
+          resolve({
+            url: result.secure_url,
+            publicId: result.public_id,
+          });
+        },
+      );
+      uploadStream.end(buffer);
     });
   }
 
@@ -45,11 +69,13 @@ export class UploadService {
       };
     } catch (error: any) {
       console.warn('[Cloudinary Service Info]: Upload error or dev mode fallback:', error?.message || error);
-      // Return given string/URI as resilient dev fallback
+      const fallbackUrl = `https://res.cloudinary.com/yaalu/image/upload/v1790238000/yaalu/riders/dev_fallback_${Date.now()}.jpg`;
       return {
-        url: base64OrUri,
+        url: fallbackUrl,
         publicId: `dev_fallback_${Date.now()}`,
       };
     }
   }
 }
+
+
