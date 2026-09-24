@@ -1,19 +1,21 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { v2 as cloudinary } from 'cloudinary';
+import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 
 export interface UploadResult {
   url: string;
-  publicId?: string;
+  publicId: string;
 }
+
+export const MAX_PROFILE_PIC_SIZE_BYTES = 5 * 1024 * 1024; // 5MB limit for security
 
 @Injectable()
 export class UploadService {
-  constructor(private readonly configService: ConfigService) {
+  constructor(@Optional() private readonly configService?: ConfigService) {
     cloudinary.config({
-      cloud_name: this.configService.get<string>('CLOUDINARY_CLOUD_NAME'),
-      api_key: this.configService.get<string>('CLOUDINARY_API_KEY'),
-      api_secret: this.configService.get<string>('CLOUDINARY_API_SECRET'),
+      cloud_name: this.configService?.get<string>('CLOUDINARY_CLOUD_NAME') || process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: this.configService?.get<string>('CLOUDINARY_API_KEY') || process.env.CLOUDINARY_API_KEY,
+      api_secret: this.configService?.get<string>('CLOUDINARY_API_SECRET') || process.env.CLOUDINARY_API_SECRET,
     });
   }
 
@@ -41,26 +43,32 @@ export class UploadService {
     });
   }
 
-  async uploadImage(base64OrUri: string, folder = 'yaalu/riders'): Promise<UploadResult> {
-    if (!base64OrUri) {
-      throw new BadRequestException('No image content provided for upload.');
+  async uploadImage(base64OrUrl: string, folder = 'yaalu/profiles'): Promise<{ url: string; publicId: string }> {
+    if (!base64OrUrl) {
+      throw new BadRequestException('Please provide a valid image file or base64 payload.');
     }
 
-    // Security check: validate size limit (Max 10MB ~ approx 13.3MB base64 string length)
-    const MAX_BASE64_LENGTH = 14 * 1024 * 1024;
-    if (base64OrUri.length > MAX_BASE64_LENGTH) {
-      throw new BadRequestException('File size exceeds maximum security limit of 10MB.');
+    // If already an HTTP/HTTPS web URL, return directly
+    if (base64OrUrl.startsWith('http://') || base64OrUrl.startsWith('https://')) {
+      return { url: base64OrUrl, publicId: 'existing_url' };
     }
 
-    // If already an HTTP/HTTPS URL, return directly
-    if (base64OrUri.startsWith('http://') || base64OrUri.startsWith('https://')) {
-      return { url: base64OrUri, publicId: 'existing_url' };
+    // Security check: Enforce maximum 5MB file size limit for image uploads
+    const base64Data = base64OrUrl.replace(/^data:image\/[a-zA-Z]+;base64,/, '');
+    const estimatedSizeBytes = (base64Data.length * 3) / 4;
+
+    if (estimatedSizeBytes > MAX_PROFILE_PIC_SIZE_BYTES) {
+      throw new BadRequestException(
+        `File size exceeds maximum allowed limit of 5MB for profile picture uploads. (Provided ~${(estimatedSizeBytes / (1024 * 1024)).toFixed(2)}MB)`
+      );
     }
 
     try {
-      const result = await cloudinary.uploader.upload(base64OrUri, {
+      const filePayload = base64OrUrl.startsWith('data:') ? base64OrUrl : `data:image/jpeg;base64,${base64OrUrl}`;
+
+      const result: UploadApiResponse = await cloudinary.uploader.upload(filePayload, {
         folder: folder,
-        resource_type: 'auto',
+        resource_type: 'image',
       });
 
       return {

@@ -1,0 +1,342 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  SHOP
+  RIDER
+  ADMIN
+}
+
+enum RiderStatus {
+  PENDING
+  AVAILABLE
+  BUSY
+  OFFLINE
+  SUSPENDED
+}
+
+model User {
+  id            String           @id @default(uuid())
+  email         String           @unique
+  fullName      String?          @map("full_name")
+  role          Role             @default(CUSTOMER)
+  password      String?
+  otp           String?
+  otpExpiresAt  DateTime?        @map("otp_expires_at")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  customerProfile CustomerProfile?
+  shopProfile     ShopProfile?
+  riderProfile    RiderProfile?
+
+  @@map("users")
+}
+
+model CustomerProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique @map("user_id")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  fullName        String?  @map("full_name")
+  phoneNumber     String?  @map("phone_number")
+  profilePicture  String?  @map("profile_picture")
+  nicNumber       String?  @map("nic_number")
+  
+  deliveryAddress String?  @map("delivery_address")
+  city            String?
+  latitude        Float?
+  longitude       Float?
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("customer_profiles")
+}
+
+model ShopProfile {
+  id             String   @id @default(uuid())
+  userId         String   @unique @map("user_id")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  shopName       String   @map("shop_name")
+  shopAddress    String?  @map("shop_address")
+  outletAddress  String?  @map("outlet_address")
+  registrationNo String?  @map("registration_no")
+  ownerName      String?  @map("owner_name")
+  ownerEmail     String?  @map("owner_email")
+  ownerPhone     String?  @map("owner_phone")
+  businessType   String?  @map("business_type")
+  shopImage      String?  @map("shop_image")
+  bannerUrl      String?  @map("banner_url")
+  logoUrl        String?  @map("logo_url")
+
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("shop_profiles")
+}
+
+model RiderProfile {
+  id                  String      @id @default(uuid())
+  userId              String      @unique @map("user_id")
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  fullName            String?     @map("full_name")
+  phoneNumber         String?     @map("phone_number")
+  nicNumber           String?     @map("nic_number")
+  profilePhotoUrl     String?     @map("profile_photo_url")
+  address             String?
+  city                String?
+
+  vehicleType         String      @map("vehicle_type")
+  vehicleNumber       String      @map("vehicle_number")
+  vehicleModel        String?     @map("vehicle_model")
+  licenseNumber       String      @map("license_number")
+  licenseExpiry       String?     @map("license_expiry")
+  licenseFrontUrl     String?     @map("license_front_url")
+  licenseBackUrl      String?     @map("license_back_url")
+
+  bankName            String?     @map("bank_name")
+  accountName         String?     @map("account_name")
+  accountNo           String?     @map("account_no")
+  accountBranch       String?     @map("account_branch")
+
+  status              RiderStatus @default(PENDING)
+  currentLatitude     Float?      @map("current_latitude")
+  currentLongitude    Float?      @map("current_longitude")
+  isApproved          Boolean     @default(false) @map("is_approved")
+  deliveriesCompleted Int         @default(0) @map("deliveries_completed")
+  rating              Float       @default(5.0)
+
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
+
+  @@map("rider_profiles")
+}
+
+model FareSetting {
+  id                    String   @id @default(uuid())
+  vehicleType           String   @unique @default("THREE_WHEEL") @map("vehicle_type")
+  vehicleName           String   @default("Three-Wheeler / Tuk Tuk") @map("vehicle_name")
+  petrolPrice           Float    @default(370.0) @map("petrol_price")
+  twoTOilRatio          Float    @default(0.02) @map("two_t_oil_ratio")
+  twoTOilPrice          Float    @default(1500.0) @map("two_t_oil_price")
+  mileageKmPerLitre     Float    @default(25.0) @map("mileage_km_per_litre")
+  otherRunningCostPerKm Float    @default(5.0) @map("other_running_cost_per_km")
+  fixedCostPerKm        Float    @default(3.0) @map("fixed_cost_per_km")
+  profitMultiplier      Float    @default(3.0) @map("profit_multiplier")
+  baseChargeFirstKm     Float    @default(150.0) @map("base_charge_first_km")
+  minimumFare           Float    @default(150.0) @map("minimum_fare")
+  commissionPercent     Float    @default(10.0) @map("commission_percent")
+  bidTimeoutMinutes     Float    @default(2.0) @map("bid_timeout_minutes")
+  isActive              Boolean  @default(true) @map("is_active")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  @@map("fare_settings")
+}
+
+model Product {
+  id                 String   @id @default(uuid())
+  merchantId         String   @default("default") @map("merchantId")
+  merchantName       String?
+  name               String
+  sku                String?
+  price              Decimal  @db.Decimal(10, 2)
+  costPrice          Decimal? @db.Decimal(10, 2)
+  unit               String   @default("unit")
+  stock              Int      @default(0)
+  lowStockThreshold  Int?     @default(10)
+  category           String?
+  imageUrl           String?
+  description        String?
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("products")
+}
+
+enum OrderStatus {
+  pending
+  confirmed
+  processing
+  shipped
+  delivered
+  cancelled
+}
+
+model Order {
+  id           String      @id @default(uuid())
+  merchantId   String      @default("default")
+  customerId   String?
+  customerName String?
+  items        OrderItem[]
+  totalAmount  Decimal     @default(0) @db.Decimal(10, 2)
+  status       OrderStatus @default(pending)
+  notes        String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String  @id @default(uuid())
+  orderId     String
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String?
+  productName String
+  quantity    Int     @default(1)
+  unitPrice   Decimal @db.Decimal(10, 2)
+  subtotal    Decimal @db.Decimal(10, 2)
+
+  @@map("order_items")
+}
+
+
+
+enum InvoiceStatus {
+  pending
+  paid
+}
+
+model Invoice {
+  id           String        @id @default(uuid())
+  merchantId   String        @default("default")
+  customerId   String?
+  customerName String?
+  orderId      String?
+  amount       Decimal       @db.Decimal(10, 2)
+  status       InvoiceStatus @default(pending)
+  dueDate      DateTime?     @db.Date
+  notes        String?
+  paidAt       DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@map("invoices")
+}
+
+model UserCard {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  cardholderName String   @map("cardholder_name")
+  cardNumberMask String   @map("card_number_mask")
+  expiryDate     String   @map("expiry_date")
+  cardType       String   @default("VISA") @map("card_type")
+  isDefault      Boolean  @default(true) @map("is_default")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("user_cards")
+}
+
+enum RideType {
+  STANDARD
+  BIDDING
+}
+
+enum RideStatus {
+  SEARCHING
+  BIDDING_ACTIVE
+  ACCEPTED
+  VERIFIED_START
+  IN_TRIP
+  COMPLETED
+  CANCELLED
+}
+
+enum BidStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+model RideRequest {
+  id                  String       @id @default(uuid())
+  customerId          String       @map("customer_id")
+  pickupAddress       String       @map("pickup_address")
+  dropoffAddress      String       @map("dropoff_address")
+  pickupLat           Float?       @map("pickup_lat")
+  pickupLng           Float?       @map("pickup_lng")
+  dropoffLat          Float?       @map("dropoff_lat")
+  dropoffLng          Float?       @map("dropoff_lng")
+  rideType            RideType     @default(STANDARD) @map("ride_type")
+  tripCategory        String       @default("ONE_WAY") @map("trip_category")
+  selectedVehicleType String       @default("bike") @map("selected_vehicle_type")
+  status              RideStatus   @default(SEARCHING)
+  biddingTimerSeconds Int          @default(480) @map("bidding_timer_seconds")
+  acceptedDriverId    String?      @map("accepted_driver_id")
+  finalFare           Decimal      @default(0) @db.Decimal(10, 2) @map("final_fare")
+  startPin            String       @default("4200") @map("start_pin")
+  etaMinutes          Int          @default(15) @map("eta_minutes")
+  createdAt           DateTime     @default(now()) @map("created_at")
+  updatedAt           DateTime     @updatedAt @map("updated_at")
+
+  bids                DriverBid[]
+  feedback            RideFeedback?
+
+  @@map("ride_requests")
+}
+
+model DriverBid {
+  id            String      @id @default(uuid())
+  rideRequestId String      @map("ride_request_id")
+  rideRequest   RideRequest @relation(fields: [rideRequestId], references: [id], onDelete: Cascade)
+  driverId      String      @map("driver_id")
+  driverName    String      @map("driver_name")
+  rating        Float       @default(5.0)
+  vehicleModel  String      @map("vehicle_model")
+  vehicleNumber String      @map("vehicle_number")
+  proposedFare  Decimal     @db.Decimal(10, 2) @map("proposed_fare")
+  status        BidStatus   @default(PENDING)
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  @@map("driver_bids")
+}
+
+model RideFeedback {
+  id            String      @id @default(uuid())
+  rideRequestId String      @unique @map("ride_request_id")
+  rideRequest   RideRequest @relation(fields: [rideRequestId], references: [id], onDelete: Cascade)
+  customerId    String      @map("customer_id")
+  driverId      String?     @map("driver_id")
+  rating        Int         @default(5)
+  compliments   String[]
+  comment       String?
+  tipAmount     Decimal     @default(0) @db.Decimal(10, 2) @map("tip_amount")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  @@map("ride_feedbacks")
+}
+
+model Hire {
+  id                String   @id @default(uuid())
+  riderId           String   @map("rider_id")
+  riderName         String   @map("rider_name")
+  customerId        String   @map("customer_id")
+  customerName      String   @map("customer_name")
+  distanceKm        Float    @map("distance_km")
+  durationMinutes   Int      @map("duration_minutes")
+  fee               Decimal  @db.Decimal(10, 2) @map("fee")
+  vehicleType       String   @map("vehicle_type")
+  vehicleNumber     String   @map("vehicle_number")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("hires")
+}
