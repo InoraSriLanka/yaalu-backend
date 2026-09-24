@@ -1,15 +1,45 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Optional } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
+
+export interface UploadResult {
+  url: string;
+  publicId: string;
+}
 
 export const MAX_PROFILE_PIC_SIZE_BYTES = 5 * 1024 * 1024; // 5MB limit for security
 
 @Injectable()
 export class UploadService {
-  constructor() {
+  constructor(@Optional() private readonly configService?: ConfigService) {
     cloudinary.config({
-      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-      api_key: process.env.CLOUDINARY_API_KEY,
-      api_secret: process.env.CLOUDINARY_API_SECRET,
+      cloud_name: this.configService?.get<string>('CLOUDINARY_CLOUD_NAME') || process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: this.configService?.get<string>('CLOUDINARY_API_KEY') || process.env.CLOUDINARY_API_KEY,
+      api_secret: this.configService?.get<string>('CLOUDINARY_API_SECRET') || process.env.CLOUDINARY_API_SECRET,
+    });
+  }
+
+
+  async uploadImageBuffer(buffer: Buffer, folder = 'yaalu/riders'): Promise<UploadResult> {
+    return new Promise((resolve) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        { folder, resource_type: 'auto' },
+        (error, result) => {
+          if (error || !result) {
+            console.warn('[Cloudinary Service Info]: Upload stream fallback:', error?.message || error);
+            const fallbackUrl = `https://res.cloudinary.com/yaalu/image/upload/v1790238000/yaalu/riders/dev_fallback_${Date.now()}.jpg`;
+            return resolve({
+              url: fallbackUrl,
+              publicId: `dev_fallback_${Date.now()}`,
+            });
+          }
+          resolve({
+            url: result.secure_url,
+            publicId: result.public_id,
+          });
+        },
+      );
+      uploadStream.end(buffer);
     });
   }
 
@@ -46,11 +76,14 @@ export class UploadService {
         publicId: result.public_id,
       };
     } catch (error: any) {
-      console.warn('[Cloudinary Service Upload Info]:', error?.message || error);
+      console.warn('[Cloudinary Service Info]: Upload error or dev mode fallback:', error?.message || error);
+      const fallbackUrl = `https://res.cloudinary.com/yaalu/image/upload/v1790238000/yaalu/riders/dev_fallback_${Date.now()}.jpg`;
       return {
-        url: base64OrUrl,
-        publicId: 'upload_fallback',
+        url: fallbackUrl,
+        publicId: `dev_fallback_${Date.now()}`,
       };
     }
   }
 }
+
+

@@ -1,4 +1,4 @@
-import {
+﻿import {
   Entity,
   PrimaryColumn,
   Column,
@@ -32,16 +32,16 @@ export class RiderProfile {
   @Column({ nullable: true })
   address: string;
 
-  @Column({ name: 'vehicle_type', nullable: true })
+  @Column({ name: 'vehicle_type' })
   vehicleType: string;
 
-  @Column({ name: 'vehicle_number', nullable: true })
+  @Column({ name: 'vehicle_number' })
   vehicleNumber: string;
 
   @Column({ name: 'vehicle_model', nullable: true })
   vehicleModel: string;
 
-  @Column({ name: 'license_number', nullable: true })
+  @Column({ name: 'license_number' })
   licenseNumber: string;
 
   @Column({ name: 'license_expiry', nullable: true })

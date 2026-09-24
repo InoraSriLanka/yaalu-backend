@@ -1,6 +1,14 @@
-﻿import { Body, Controller, Post } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { UploadService } from './upload.service';
+import { UploadService, UploadResult } from './upload.service';
 
 @ApiTags('Uploads')
 @Controller('uploads')
@@ -8,11 +16,22 @@ export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
 
   @Post('image')
-  @ApiOperation({ summary: 'Upload an image to Cloudinary CDN' })
-  @ApiResponse({ status: 201, description: 'Image uploaded successfully to Cloudinary' })
-  uploadImage(@Body() body: any) {
-    const imagePayload = typeof body === 'string' ? body : (body?.image || body?.base64 || body?.file);
-    const folder = body?.folder || 'yaalu/profiles';
-    return this.uploadService.uploadImage(imagePayload, folder);
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadImage(
+    @UploadedFile() file?: any,
+    @Body('image') image?: string,
+    @Body('file') fileBody?: string,
+    @Body('folder') folder?: string,
+  ): Promise<UploadResult> {
+    const folderName = folder || 'yaalu/riders';
+    if (file && file.buffer) {
+      return this.uploadService.uploadImageBuffer(file.buffer, folderName);
+    }
+    const content = image || fileBody;
+    if (content) {
+      return this.uploadService.uploadImage(content, folderName);
+    }
+    throw new BadRequestException('No image file or base64 image string provided.');
   }
 }
+
