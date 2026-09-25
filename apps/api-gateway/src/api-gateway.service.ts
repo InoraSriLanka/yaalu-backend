@@ -368,23 +368,37 @@ export class ApiGatewayService implements OnModuleInit {
     });
 
     // ─── Seed Customers Table ────────────────────────────────────
-    await this.prisma.customer.create({
-      data: {
-        name: 'Tharindu Bandara',
-        mobile: '+94771234567',
+    await this.prisma.user.upsert({
+      where: { email: 'tharindu.customer@yaalu.lk' },
+      update: {},
+      create: {
         email: 'tharindu.customer@yaalu.lk',
-        address: '24 Flower Road, Colombo 07',
-        notes: 'VIP Customer',
+        fullName: 'Tharindu Bandara',
+        role: 'CUSTOMER',
+        customerProfile: {
+          create: {
+            fullName: 'Tharindu Bandara',
+            phoneNumber: '+94771234567',
+            deliveryAddress: '24 Flower Road, Colombo 07',
+          },
+        },
       },
     });
 
-    await this.prisma.customer.create({
-      data: {
-        name: 'Nadeesha Jayawardena',
-        mobile: '+94761234567',
+    await this.prisma.user.upsert({
+      where: { email: 'nadeesha.customer@yaalu.lk' },
+      update: {},
+      create: {
         email: 'nadeesha.customer@yaalu.lk',
-        address: '15 Havelock Road, Colombo 05',
-        notes: 'Regular Customer',
+        fullName: 'Nadeesha Jayawardena',
+        role: 'CUSTOMER',
+        customerProfile: {
+          create: {
+            fullName: 'Nadeesha Jayawardena',
+            phoneNumber: '+94761234567',
+            deliveryAddress: '15 Havelock Road, Colombo 05',
+          },
+        },
       },
     });
 

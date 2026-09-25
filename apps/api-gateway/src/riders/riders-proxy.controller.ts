@@ -34,7 +34,23 @@ export class RidersProxyController {
       riderProfile?.fullName ||
       user?.fullName ||
       (user?.email ? user.email.split('@')[0] : 'Rider Partner');
-    const phone = riderProfile?.phoneNumber || user?.email || '';
+    const phone = riderProfile?.phoneNumber || user?.phoneNumber || user?.mobile || user?.email || '';
+
+    const vehiclePhoto =
+      riderProfile?.vehiclePhoto ||
+      riderProfile?.vehiclePhotoUrl ||
+      user?.vehiclePhoto ||
+      user?.vehiclePhotoUrl ||
+      user?.vehicle_photo ||
+      '';
+
+    const registrationDoc =
+      riderProfile?.registrationDoc ||
+      riderProfile?.registrationDocUrl ||
+      user?.registrationDoc ||
+      user?.registrationDocUrl ||
+      user?.registration_doc ||
+      '';
 
     const formattedRider = {
       id: riderProfile?.id || user?.id,
@@ -45,23 +61,29 @@ export class RidersProxyController {
       phone,
       mobile: phone,
       email: user?.email || '',
-      nicNumber: riderProfile?.nicNumber || '',
-      profilePhotoUrl: riderProfile?.profilePhotoUrl || '',
-      address: riderProfile?.address || '',
-      city: riderProfile?.city || '',
-      vehicleType: riderProfile?.vehicleType || 'MOTORBIKE',
-      vehicleNumber: riderProfile?.vehicleNumber || '',
-      vehicleModel: riderProfile?.vehicleModel || '',
-      licenseNumber: riderProfile?.licenseNumber || '',
-      licenseExpiry: riderProfile?.licenseExpiry || '',
-      licenseFrontUrl: riderProfile?.licenseFrontUrl || '',
-      licenseBackUrl: riderProfile?.licenseBackUrl || '',
-      bankName: riderProfile?.bankName || '',
-      accountName: riderProfile?.accountName || '',
-      accountNumber: riderProfile?.accountNo || '',
-      accountNo: riderProfile?.accountNo || '',
-      branchCode: riderProfile?.accountBranch || '',
-      accountBranch: riderProfile?.accountBranch || '',
+      nicNumber: riderProfile?.nicNumber || user?.nicNumber || '',
+      profilePhotoUrl: riderProfile?.profilePhotoUrl || user?.profilePicture || user?.profilePhotoUrl || '',
+      profilePicture: riderProfile?.profilePhotoUrl || user?.profilePicture || user?.profilePhotoUrl || '',
+      address: riderProfile?.address || user?.address || '',
+      city: riderProfile?.city || user?.city || '',
+      vehicleType: riderProfile?.vehicleType || user?.vehicleType || 'MOTORBIKE',
+      vehicleNumber: riderProfile?.vehicleNumber || user?.plateNumber || user?.vehicleNumber || '',
+      plateNumber: riderProfile?.vehicleNumber || user?.plateNumber || user?.vehicleNumber || '',
+      vehicleModel: riderProfile?.vehicleModel || user?.vehicleModel || '',
+      vehiclePhoto,
+      vehiclePhotoUrl: vehiclePhoto,
+      registrationDoc,
+      registrationDocUrl: registrationDoc,
+      licenseNumber: riderProfile?.licenseNumber || user?.licenseNumber || '',
+      licenseExpiry: riderProfile?.licenseExpiry || user?.licenseExpiry || '',
+      licenseFrontUrl: riderProfile?.licenseFrontUrl || user?.licenseFrontUrl || '',
+      licenseBackUrl: riderProfile?.licenseBackUrl || user?.licenseBackUrl || '',
+      bankName: riderProfile?.bankName || user?.bankName || '',
+      accountName: riderProfile?.accountName || user?.accountName || '',
+      accountNumber: riderProfile?.accountNo || user?.accountNo || '',
+      accountNo: riderProfile?.accountNo || user?.accountNo || '',
+      branchCode: riderProfile?.accountBranch || user?.accountBranch || '',
+      accountBranch: riderProfile?.accountBranch || user?.accountBranch || '',
       status: riderProfile?.status || 'PENDING',
       isApproved: riderProfile?.isApproved || false,
       deliveriesCompleted: riderProfile?.deliveriesCompleted || 0,
@@ -78,10 +100,19 @@ export class RidersProxyController {
       access_token: accessToken,
       rider: formattedRider,
       user: {
+        ...(user || {}),
         id: user?.id,
         email: user?.email,
         fullName,
         role: 'RIDER',
+        vehiclePhoto,
+        vehiclePhotoUrl: vehiclePhoto,
+        registrationDoc,
+        registrationDocUrl: registrationDoc,
+        vehicleType: formattedRider.vehicleType,
+        vehicleModel: formattedRider.vehicleModel,
+        vehicleNumber: formattedRider.vehicleNumber,
+        plateNumber: formattedRider.plateNumber,
       },
     };
   }
@@ -578,6 +609,15 @@ export class RidersProxyController {
         include: { riderProfile: true },
       });
       riderProfile = user?.riderProfile;
+
+      try {
+        const rawUsers: any[] = await this.prisma.$queryRaw`SELECT * FROM public.users WHERE id = ${userId} LIMIT 1`;
+        if (rawUsers && rawUsers.length > 0) {
+          user = { ...rawUsers[0], ...(user || {}) };
+        }
+      } catch (e) {
+        console.warn('[Rider me raw query]:', e);
+      }
     }
 
     if (!riderProfile) {
@@ -586,6 +626,14 @@ export class RidersProxyController {
         orderBy: { createdAt: 'desc' },
       });
       user = riderProfile?.user;
+      if (user?.id) {
+        try {
+          const rawUsers: any[] = await this.prisma.$queryRaw`SELECT * FROM public.users WHERE id = ${user.id} LIMIT 1`;
+          if (rawUsers && rawUsers.length > 0) {
+            user = { ...rawUsers[0], ...(user || {}) };
+          }
+        } catch (e) {}
+      }
     }
 
     if (!riderProfile) {

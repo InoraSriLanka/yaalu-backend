@@ -36,6 +36,11 @@ model User {
   otpExpiresAt  DateTime?        @map("otp_expires_at")
   createdAt     DateTime         @default(now()) @map("created_at")
   updatedAt     DateTime         @updatedAt @map("updated_at")
+  vehicleType   String?
+  vehicleModel  String?
+  plateNumber   String?
+  vehiclePhoto  String?
+  registrationDoc String?
 
   customerProfile CustomerProfile?
   shopProfile     ShopProfile?
