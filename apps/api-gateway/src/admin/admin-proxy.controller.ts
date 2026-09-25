@@ -388,7 +388,8 @@ export class AdminProxyController {
   // ─── Customers (ALL customers) ─────────────────────────────
   @Get('customers')
   async getCustomers() {
-    return this.prisma.customer.findMany({
+    return this.prisma.customerProfile.findMany({
+      include: { user: true },
       orderBy: { createdAt: 'desc' },
     });
   }

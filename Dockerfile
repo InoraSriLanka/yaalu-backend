@@ -28,8 +28,9 @@ RUN apk add --no-cache python3 make g++ openssl
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev || npm install --omit=dev
 
-# Copy Prisma schema and generate client for production
+# Copy Prisma schema and copy pre-generated client from builder stage
 COPY prisma ./prisma
+COPY --from=builder /usr/src/app/node_modules/@prisma/client ./node_modules/@prisma/client
 RUN npx prisma generate
 
 ARG APP_NAME
