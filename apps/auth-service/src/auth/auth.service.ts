@@ -18,7 +18,7 @@ export class AuthService {
       throw new ConflictException('Email is already registered');
     }
 
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const hashedPassword = dto.password ? await bcrypt.hash(dto.password, 10) : '';
     const user = this.usersRepository.create({ email: dto.email, password: hashedPassword });
     const saved = await this.usersRepository.save(user);
 

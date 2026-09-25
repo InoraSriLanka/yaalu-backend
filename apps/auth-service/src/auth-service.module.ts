@@ -20,7 +20,7 @@ import { Rider } from './riders/entities/rider.entity';
         password: config.get<string>('DB_PASSWORD', 'postgres'),
         database: config.get<string>('DB_NAME', 'yaalu_db'),
         entities: [User, Rider],
-        synchronize: true, // dev only — auto creates/syncs tables
+        synchronize: false, // set false to prevent schema migration constraint conflicts
       }),
     }),
     AuthModule,
