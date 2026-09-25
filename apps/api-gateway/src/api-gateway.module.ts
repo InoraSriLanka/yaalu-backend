@@ -4,7 +4,7 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
 import { AUTH_SERVICE, AUTH_QUEUE } from '@app/common';
 import { ApiGatewayController } from './api-gateway.controller';
 import { ApiGatewayService } from './api-gateway.service';
-import { AuthProxyController } from './auth/auth-proxy.controller';
+import { AuthProxyController, MerchantsProxyController } from './auth/auth-proxy.controller';
 import {
   RidersProxyController,
   AdminRidersProxyController,
@@ -32,6 +32,7 @@ import {
   controllers: [
     ApiGatewayController,
     AuthProxyController,
+    MerchantsProxyController,
     RidersProxyController,
     AdminRidersProxyController,
   ],
