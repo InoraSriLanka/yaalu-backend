@@ -9,6 +9,8 @@ import {
   Headers,
   UnauthorizedException,
   BadRequestException,
+  NotFoundException,
+  ConflictException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { PrismaService } from '@app/common';
@@ -796,62 +798,221 @@ export class RidersProxyController {
   // ─── Orders & Earnings ─────────────────────────────────────
   @Get('orders/available')
   async getAvailableOrders() {
-    return [
-      {
-        id: 'ord-avail-101',
-        pickupAddress: 'Perera & Sons, Galle Road, Kollupitiya',
-        deliveryAddress: 'No. 45, Duplication Road, Bambalapitiya',
-        distanceKm: 2.4,
-        fare: 450,
+    try {
+      // 1. Fetch unaccepted ride requests from database
+      const rides = await this.prisma.rideRequest.findMany({
+        where: {
+          status: { in: ['SEARCHING', 'BIDDING_ACTIVE'] },
+          acceptedDriverId: null,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // 2. Fetch pending product delivery orders
+      const storeOrders = await this.prisma.order.findMany({
+        where: {
+          status: 'pending',
+        },
+        include: { items: true },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      const formattedRides = rides.map((r) => ({
+        id: r.id,
+        orderNumber: `RID-${r.id.slice(0, 6).toUpperCase()}`,
+        pickupAddress: r.pickupAddress || 'Pickup Location',
+        dropoffAddress: r.dropoffAddress || 'Delivery Location',
+        deliveryAddress: r.dropoffAddress || 'Delivery Location',
+        distanceKm: 3.5,
+        fare: Number(r.finalFare) || 500,
         estimatedTime: '15 mins',
-        merchantName: 'Perera & Sons',
-        itemsCount: 3,
-      },
-      {
-        id: 'ord-avail-102',
-        pickupAddress: 'Cargills Food City, Havelock Town',
-        deliveryAddress: '78 High Level Road, Nugegoda',
-        distanceKm: 4.8,
-        fare: 720,
-        estimatedTime: '25 mins',
-        merchantName: 'Cargills Food City',
-        itemsCount: 7,
-      },
-    ];
+        rideType: r.rideType || 'STANDARD',
+        merchantName: r.tripCategory || 'Customer Request',
+        itemsCount: 1,
+        status: r.status,
+        createdAt: r.createdAt ? new Date(r.createdAt).toISOString() : new Date().toISOString(),
+      }));
+
+      const formattedOrders = storeOrders.map((o) => ({
+        id: o.id,
+        orderNumber: `ORD-${o.id.slice(0, 6).toUpperCase()}`,
+        pickupAddress: 'Yaalu Express Central Warehouse',
+        dropoffAddress: o.notes || 'Customer Delivery Address',
+        deliveryAddress: o.notes || 'Customer Delivery Address',
+        distanceKm: 4.2,
+        fare: Number(o.totalAmount) || 600,
+        estimatedTime: '20 mins',
+        rideType: 'STANDARD',
+        merchantName: o.merchantId !== 'default' ? o.merchantId : 'Store Purchase',
+        itemsCount: o.items ? o.items.length : 1,
+        status: o.status,
+        createdAt: o.createdAt ? new Date(o.createdAt).toISOString() : new Date().toISOString(),
+      }));
+
+      return [...formattedRides, ...formattedOrders];
+    } catch (error) {
+      console.warn('[Rider Proxy getAvailableOrders Error]:', error);
+      return [];
+    }
   }
 
   @Get('me/orders')
-  async getMyOrders(@Query('status') status?: string) {
-    return [
-      {
-        id: 'ord-1001',
-        orderNumber: 'ORD-9821',
-        status: status || 'DELIVERED',
-        pickupAddress: 'Burger King, Majestic City',
-        deliveryAddress: '32 Alfred House Gardens, Colombo 03',
-        fare: 520,
-        tip: 100,
-        totalEarnings: 620,
-        completedAt: new Date(Date.now() - 3600000).toISOString(),
-        customerName: 'Dharshana Silva',
-      },
-      {
-        id: 'ord-1002',
-        orderNumber: 'ORD-9822',
-        status: status || 'DELIVERED',
-        pickupAddress: 'Keells Super, Union Place',
-        deliveryAddress: '15 Park Street, Colombo 02',
-        fare: 680,
-        tip: 50,
-        totalEarnings: 730,
-        completedAt: new Date(Date.now() - 7200000).toISOString(),
-        customerName: 'Ananya Mendis',
-      },
-    ];
+  async getMyOrders(
+    @Headers('authorization') authHeader?: string,
+    @Query('token') tokenQuery?: string,
+    @Query('status') statusFilter?: string,
+  ) {
+    try {
+      const userId = this.extractUserIdFromToken(authHeader, tokenQuery);
+      const rider = await this.prisma.riderProfile.findFirst({
+        where: userId ? { userId } : {},
+        orderBy: { createdAt: 'desc' },
+      });
+
+      const riderId = userId || rider?.userId || rider?.id;
+
+      let rides: any[] = [];
+      let hires: any[] = [];
+
+      if (riderId) {
+        rides = await this.prisma.rideRequest.findMany({
+          where: {
+            OR: [
+              { acceptedDriverId: riderId },
+              ...(rider?.id ? [{ acceptedDriverId: rider.id }] : []),
+            ],
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        hires = await this.prisma.hire.findMany({
+          where: {
+            OR: [
+              { riderId: riderId },
+              ...(rider?.id ? [{ riderId: rider.id }] : []),
+            ],
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+      }
+
+      const formattedRides = rides.map((r) => {
+        const fareNum = Number(r.finalFare) || 0;
+        return {
+          id: r.id,
+          orderNumber: `RID-${r.id.slice(0, 6).toUpperCase()}`,
+          status: r.status === 'COMPLETED' ? 'COMPLETED' : r.status,
+          pickupAddress: r.pickupAddress,
+          dropoffAddress: r.dropoffAddress,
+          deliveryAddress: r.dropoffAddress,
+          fare: fareNum,
+          amount: `LKR ${fareNum.toLocaleString('en-LK', { minimumFractionDigits: 2 })}`,
+          tip: 0,
+          totalEarnings: fareNum,
+          completedAt: r.updatedAt ? new Date(r.updatedAt).toISOString() : new Date(r.createdAt).toISOString(),
+          dateGroup: new Date(r.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          customerName: 'Customer',
+        };
+      });
+
+      const formattedHires = hires.map((h) => {
+        const feeNum = Number(h.fee) || 0;
+        return {
+          id: h.id,
+          orderNumber: `HIR-${h.id.slice(0, 6).toUpperCase()}`,
+          status: 'COMPLETED',
+          pickupAddress: 'Customer Pickup',
+          dropoffAddress: 'Customer Dropoff',
+          deliveryAddress: 'Customer Dropoff',
+          fare: feeNum,
+          amount: `LKR ${feeNum.toLocaleString('en-LK', { minimumFractionDigits: 2 })}`,
+          tip: 0,
+          totalEarnings: feeNum,
+          completedAt: h.createdAt ? new Date(h.createdAt).toISOString() : new Date().toISOString(),
+          dateGroup: new Date(h.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          customerName: h.customerName || 'Customer',
+        };
+      });
+
+      const combined = [...formattedRides, ...formattedHires];
+
+      if (statusFilter && statusFilter !== 'All') {
+        const cleanFilter = statusFilter.toUpperCase();
+        return combined.filter((item) => {
+          if (cleanFilter === 'COMPLETED') return item.status === 'COMPLETED' || item.status === 'DELIVERED';
+          if (cleanFilter === 'PENDING') return item.status === 'PENDING' || item.status === 'ACCEPTED' || item.status === 'IN_TRIP';
+          if (cleanFilter === 'CANCELLED') return item.status === 'CANCELLED';
+          return true;
+        });
+      }
+
+      return combined;
+    } catch (error) {
+      console.warn('[Rider Proxy getMyOrders Error]:', error);
+      return [];
+    }
   }
 
   @Patch('orders/:orderId/accept')
-  async acceptOrder(@Param('orderId') orderId: string) {
+  async acceptOrder(
+    @Param('orderId') orderId: string,
+    @Headers('authorization') authHeader?: string,
+    @Query('token') tokenQuery?: string,
+  ) {
+    const userId = this.extractUserIdFromToken(authHeader, tokenQuery);
+    const rider = await this.prisma.riderProfile.findFirst({
+      where: userId ? { userId } : {},
+      orderBy: { createdAt: 'desc' },
+    });
+    const activeDriverId = userId || rider?.userId || rider?.id || 'rider-partner-1';
+
+    // Check if ride request exists
+    const existingRide = await this.prisma.rideRequest.findUnique({
+      where: { id: orderId },
+    });
+
+    if (existingRide) {
+      if (existingRide.acceptedDriverId && existingRide.acceptedDriverId !== activeDriverId) {
+        throw new ConflictException('This request has already been accepted by another rider!');
+      }
+
+      const updatedRide = await this.prisma.rideRequest.update({
+        where: { id: orderId },
+        data: {
+          status: 'ACCEPTED',
+          acceptedDriverId: activeDriverId,
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Ride request accepted successfully',
+        orderId: updatedRide.id,
+        status: updatedRide.status,
+      };
+    }
+
+    // Check if store order exists
+    const existingStoreOrder = await this.prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (existingStoreOrder) {
+      const updatedOrder = await this.prisma.order.update({
+        where: { id: orderId },
+        data: {
+          status: 'processing',
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Order accepted successfully',
+        orderId: updatedOrder.id,
+        status: 'ACCEPTED',
+      };
+    }
+
     return {
       success: true,
       message: `Order ${orderId} accepted successfully`,
@@ -861,7 +1022,20 @@ export class RidersProxyController {
   }
 
   @Patch('orders/:orderId/status')
-  async updateOrderStatus(@Param('orderId') orderId: string, @Body() body: { status: string }) {
+  async updateOrderStatus(
+    @Param('orderId') orderId: string,
+    @Body() body: { status: string },
+  ) {
+    try {
+      const existingRide = await this.prisma.rideRequest.findUnique({ where: { id: orderId } });
+      if (existingRide) {
+        await this.prisma.rideRequest.update({
+          where: { id: orderId },
+          data: { status: body.status as any },
+        });
+      }
+    } catch (e) {}
+
     return {
       success: true,
       orderId,
@@ -870,35 +1044,122 @@ export class RidersProxyController {
   }
 
   @Get('me/earnings')
-  async getEarnings(@Query('period') period = 'daily') {
-    return {
-      period,
-      totalEarnings: 4850,
-      todayEarnings: 4850,
-      completedTrips: 9,
-      tipsEarned: 450,
-      incentives: 500,
-      onlineHours: 6.5,
-    };
+  async getEarnings(
+    @Headers('authorization') authHeader?: string,
+    @Query('token') tokenQuery?: string,
+    @Query('period') period = 'daily',
+  ) {
+    try {
+      const userId = this.extractUserIdFromToken(authHeader, tokenQuery);
+      const rider = await this.prisma.riderProfile.findFirst({
+        where: userId ? { userId } : {},
+        orderBy: { createdAt: 'desc' },
+      });
+      const riderId = userId || rider?.userId || rider?.id;
+
+      let completedRides: any[] = [];
+      let completedHires: any[] = [];
+
+      if (riderId) {
+        completedRides = await this.prisma.rideRequest.findMany({
+          where: {
+            OR: [
+              { acceptedDriverId: riderId },
+              ...(rider?.id ? [{ acceptedDriverId: rider.id }] : []),
+            ],
+            status: 'COMPLETED',
+          },
+        });
+
+        completedHires = await this.prisma.hire.findMany({
+          where: {
+            OR: [
+              { riderId: riderId },
+              ...(rider?.id ? [{ riderId: rider.id }] : []),
+            ],
+          },
+        });
+      }
+
+      const rideEarnings = completedRides.reduce((sum, r) => sum + (Number(r.finalFare) || 0), 0);
+      const hireEarnings = completedHires.reduce((sum, h) => sum + (Number(h.fee) || 0), 0);
+      const totalEarnings = rideEarnings + hireEarnings;
+      const totalDeliveries = completedRides.length + completedHires.length;
+
+      return {
+        period,
+        totalEarnings,
+        todayEarnings: totalEarnings,
+        totalDeliveries,
+        completedTrips: totalDeliveries,
+        tipsEarned: 0,
+        incentives: 0,
+        onlineHours: totalDeliveries > 0 ? (totalDeliveries * 0.5) : 0,
+      };
+    } catch (e) {
+      return {
+        period,
+        totalEarnings: 0,
+        todayEarnings: 0,
+        totalDeliveries: 0,
+        completedTrips: 0,
+        tipsEarned: 0,
+        incentives: 0,
+        onlineHours: 0,
+      };
+    }
   }
 
   @Get('me/notifications')
   async getNotifications() {
-    return [
-      {
-        id: 'notif-1',
-        title: 'Payout Processed 💰',
-        message: 'Your weekly payout of LKR 24,500 has been sent to your bank account.',
-        createdAt: new Date(Date.now() - 86400000).toISOString(),
+    try {
+      // 1. Fetch live unaccepted ride requests to populate request notifications
+      const activeRides = await this.prisma.rideRequest.findMany({
+        where: {
+          status: { in: ['SEARCHING', 'BIDDING_ACTIVE'] },
+          acceptedDriverId: null,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      const requestNotifs = activeRides.map((r) => ({
+        id: `notif-ride-${r.id}`,
+        title: r.rideType === 'BIDDING' ? '🚗 New Bidding Ride Request!' : '⚡ New Delivery Trip Available!',
+        description: `Pickup: ${r.pickupAddress} → Dropoff: ${r.dropoffAddress} (Fare: LKR ${Number(r.finalFare || 0).toFixed(2)})`,
+        time: 'Just now',
+        type: 'Requests',
+        iconName: 'car-outline',
+        createdAt: r.createdAt ? new Date(r.createdAt).toISOString() : new Date().toISOString(),
         isRead: false,
-      },
-      {
-        id: 'notif-2',
-        title: 'High Demand Zone 🚀',
-        message: 'High order volume in Colombo 03 & Colombo 07. Earn 1.2x on all trips now!',
-        createdAt: new Date(Date.now() - 172800000).toISOString(),
-        isRead: true,
-      },
-    ];
+      }));
+
+      const systemNotifs = [
+        {
+          id: 'notif-system-1',
+          title: 'Payout System Active 💰',
+          description: 'Your weekly payout account is ready. Earned delivery fares are added to your balance.',
+          time: 'Today',
+          type: 'Alerts',
+          iconName: 'wallet-outline',
+          createdAt: new Date(Date.now() - 86400000).toISOString(),
+          isRead: true,
+        },
+        {
+          id: 'notif-system-2',
+          title: 'High Demand Zone Alert 🚀',
+          description: 'High order volume in Colombo & Suburbs. Turn on Online status to receive orders!',
+          time: 'Yesterday',
+          type: 'Alerts',
+          iconName: 'flame-outline',
+          createdAt: new Date(Date.now() - 172800000).toISOString(),
+          isRead: true,
+        },
+      ];
+
+      return [...requestNotifs, ...systemNotifs];
+    } catch (e) {
+      console.warn('[Rider Proxy getNotifications Error]:', e);
+      return [];
+    }
   }
 }

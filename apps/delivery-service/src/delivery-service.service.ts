@@ -110,7 +110,7 @@ export class DeliveryServiceService {
         rideType: isBidding ? 'BIDDING' : 'STANDARD',
         selectedVehicleType: dto.selectedVehicleType || 'bike',
         tripCategory: (dto.tripCategory as any) || 'ONE_WAY',
-        status: isBidding ? 'SEARCHING' : 'ACCEPTED',
+        status: isBidding ? 'BIDDING_ACTIVE' : 'SEARCHING',
         biddingTimerSeconds: 480,
         startPin: Math.floor(1000 + Math.random() * 9000).toString(),
         etaMinutes: 15,

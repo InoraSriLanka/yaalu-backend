@@ -56,9 +56,24 @@ export class DeliveriesProxyController {
     return this.deliveryServiceService.createRideRequest(dto);
   }
 
+  @Get('rides/available')
+  @ApiOperation({ summary: 'Get all available ride requests for online riders' })
+  async getAvailableRides() {
+    return this.prisma.rideRequest.findMany({
+      where: {
+        status: { in: ['SEARCHING', 'BIDDING_ACTIVE'] },
+        acceptedDriverId: null,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   @Get('rides/:id')
   @ApiOperation({ summary: 'Get ride details and tracking info' })
   getRide(@Param('id') rideRequestId: string) {
+    if (rideRequestId === 'available') {
+      return this.getAvailableRides();
+    }
     return this.deliveryServiceService.getRideRequest(rideRequestId);
   }
 
