@@ -6,6 +6,15 @@ export class Order {
   id: string;
 
   @Column({ nullable: true })
+  merchantId: string;
+
+  @Column({ nullable: true })
+  merchantName: string;
+
+  @Column({ nullable: true })
+  customerId: string;
+
+  @Column({ nullable: true })
   customerName: string;
 
   @Column({ nullable: true })
@@ -22,6 +31,18 @@ export class Order {
 
   @Column({ default: 'PENDING' })
   status: string;
+
+  @Column({ nullable: true })
+  notes: string;
+
+  @Column({ nullable: true })
+  riderId: string;
+
+  @Column({ nullable: true })
+  riderName: string;
+
+  @Column({ nullable: true })
+  paymentMethod: string;
 
   @CreateDateColumn()
   createdAt: Date;

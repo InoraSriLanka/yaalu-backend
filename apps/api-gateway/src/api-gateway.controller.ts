@@ -3,10 +3,6 @@ import { ClientProxy } from '@nestjs/microservices';
 import { AUTH_SERVICE } from '@app/common';
 import { ApiGatewayService } from './api-gateway.service';
 
-let mockRides: any[] = [
-  { id: 'RIDE-8842', pickupAddress: 'Yaalu Central Hub', dropoffAddress: 'No 15, Galle Road', rideType: 'Delivery', createdAt: new Date().toISOString() }
-];
-
 @Controller()
 export class ApiGatewayController {
   constructor(
@@ -19,7 +15,7 @@ export class ApiGatewayController {
     return this.apiGatewayService.getHello();
   }
 
-  // ── Orders ──────────────────────────────────────────
+  // ── Orders (PostgreSQL) ──────────────────────────────────────────
   @Post('orders')
   createOrder(@Body() body: any) {
     const items = (body.items || []).map((item: any) => ({
@@ -32,8 +28,8 @@ export class ApiGatewayController {
       ...body,
       items,
       totalAmount: body.totalAmount || totalAmount,
-      customerPhone: body.customerPhone || '077 123 4567',
-      deliveryAddress: body.deliveryAddress || 'No 123, Main Street, Colombo',
+      customerPhone: body.customerPhone || '',
+      deliveryAddress: body.deliveryAddress || '',
       status: 'PENDING',
     };
     return this.authClient.send('orders.create', newOrder);
@@ -44,11 +40,38 @@ export class ApiGatewayController {
     return this.authClient.send('orders.find-all', {});
   }
 
+  @Get('orders/:id')
+  getOrder(@Param('id') id: string) {
+    return this.authClient.send('orders.find-one', { id });
+  }
+
   @Get('admin/orders')
   getAdminOrders() {
     return this.authClient.send('orders.find-all', {});
   }
 
+  @Patch('admin/orders/:id/status')
+  updateAdminOrderStatus(@Param('id') id: string, @Body() body: any) {
+    return this.updateOrderStatus(id, body);
+  }
+
+  @Patch('orders/:id/status')
+  async updateOrderStatus(@Param('id') id: string, @Body() body: any) {
+    const res = await this.authClient.send('orders.update-status', { id, data: { status: body.status } }).toPromise();
+
+    if (body.status === 'PREPARING' || body.status === 'READY') {
+      // Create a ride record in PostgreSQL
+      await this.authClient.send('rides.create', {
+        pickupAddress: 'Shop Location',
+        dropoffAddress: res?.deliveryAddress || 'Customer Delivery Address',
+        rideType: 'Delivery',
+        orderId: id,
+      }).toPromise();
+    }
+    return { success: true, status: body.status, order: res };
+  }
+
+  // ── Users (PostgreSQL) ──────────────────────────────────────────
   @Get('admin/users')
   getAdminUsers(@Query('role') role?: string) {
     return this.authClient.send('admin.get-users', { role });
@@ -69,11 +92,18 @@ export class ApiGatewayController {
     return this.authClient.send('admin.update-user', { id, data: body });
   }
 
+  // ── Customers (PostgreSQL) ──────────────────────────────────────
   @Get('admin/customers')
   getAdminCustomers() {
     return this.authClient.send('admin.get-customers', {});
   }
 
+  @Patch('admin/customers/:id')
+  updateCustomer(@Param('id') id: string, @Body() body: any) {
+    return this.authClient.send('admin.update-user', { id, data: body });
+  }
+
+  // ── Merchants (PostgreSQL) ──────────────────────────────────────
   @Get('admin/merchants')
   getAdminMerchants() {
     return this.authClient.send('admin.get-merchants', {});
@@ -97,12 +127,7 @@ export class ApiGatewayController {
     return this.authClient.send('admin.update-user', { id, data: body });
   }
 
-  @Patch('admin/customers/:id')
-  updateCustomer(@Param('id') id: string, @Body() body: any) {
-    return this.authClient.send('admin.update-user', { id, data: body });
-  }
-
-  // ── Products ──────────────────────────────────────────
+  // ── Products (PostgreSQL) ──────────────────────────────────────
   @Get('products')
   getProducts(@Query('activeOnly') activeOnly: string) {
     return this.authClient.send('products.find-all', { activeOnly: activeOnly === 'true' });
@@ -128,7 +153,6 @@ export class ApiGatewayController {
     return this.authClient.send('products.remove', { id });
   }
 
-  // ── Admin Products Alias ──────────────────────────────────────────
   @Get('admin/products')
   getAdminProducts() {
     return this.authClient.send('products.find-all', { activeOnly: false });
@@ -149,118 +173,82 @@ export class ApiGatewayController {
     return this.deleteProduct(id);
   }
 
-  // ── Admin Invoices (in-memory) ──────────────────────────────────────────
-  private mockInvoices: any[] = [];
-
+  // ── Invoices (PostgreSQL) ──────────────────────────────────────
   @Get('admin/invoices')
   getAdminInvoices() {
-    return this.mockInvoices;
+    return this.authClient.send('invoices.find-all', {});
   }
 
   @Patch('admin/invoices/:id/pay')
   markInvoicePaid(@Param('id') id: string) {
-    const idx = this.mockInvoices.findIndex(i => i.id === id);
-    if (idx !== -1) { this.mockInvoices[idx].status = 'paid'; return this.mockInvoices[idx]; }
-    return { success: true };
+    return this.authClient.send('invoices.mark-paid', { id });
   }
 
-  // ── Fare Settings (in-memory) ───────────────────────────────────────────
-  private fareSettings: any = {
-    vehicleType: 'THREE_WHEEL', baseFare: 100, perKmRate: 50, minimumFare: 150, isActive: true
-  };
-
+  // ── Fare Settings (PostgreSQL) ─────────────────────────────────
   @Get('admin/fare-settings')
   getFareSettings() {
-    return [this.fareSettings];
+    return this.authClient.send('fare-settings.find-all', {});
   }
 
   @Patch('admin/fare-settings')
   updateFareSettings(@Body() body: any) {
-    this.fareSettings = { ...this.fareSettings, ...body };
-    return this.fareSettings;
+    return this.authClient.send('fare-settings.update', body);
   }
 
   @Post('admin/fare-settings/calculate')
   calculateFare(@Body() body: any) {
-    return { ...this.fareSettings, calculatedFare: (body.distanceKm || 1) * (this.fareSettings.perKmRate || 50) };
+    return this.authClient.send('fare-settings.calculate', body);
   }
 
-  // ── Hires (in-memory) ───────────────────────────────────────────────────
-  private mockHires: any[] = [];
-
+  // ── Hires (PostgreSQL) ─────────────────────────────────────────
   @Get('admin/hires')
   getAdminHires() {
-    return this.mockHires;
+    return this.authClient.send('hires.find-all', {});
   }
 
   @Post('admin/hires')
   createAdminHire(@Body() body: any) {
-    const hire = { ...body, id: 'HIRE-' + Date.now(), createdAt: new Date().toISOString() };
-    this.mockHires.unshift(hire);
-    return hire;
+    return this.authClient.send('hires.create', body);
   }
 
   @Delete('admin/hires/:id')
   deleteAdminHire(@Param('id') id: string) {
-    this.mockHires = this.mockHires.filter(h => h.id !== id);
-    return { success: true };
+    return this.authClient.send('hires.remove', { id });
   }
 
+  // ── Rides / Deliveries (PostgreSQL) ────────────────────────────
+  @Get('deliveries/rides/available')
+  getAvailableRides() {
+    return this.authClient.send('rides.find-available', {});
+  }
+
+  // ── Stats (PostgreSQL aggregation) ─────────────────────────────
   @Get('admin/stats')
   async getAdminStats() {
     try {
-      const customers: any = await this.authClient.send('admin.get-customers', {}).toPromise();
-      const merchants: any = await this.authClient.send('admin.get-merchants', {}).toPromise();
-      const orders: any = await this.authClient.send('orders.find-all', {}).toPromise();
-      
-      const totalCust = Array.isArray(customers) ? customers.length : 1;
-      const totalMerch = Array.isArray(merchants) ? merchants.length : 1;
+      const [customers, merchants, orders]: any[] = await Promise.all([
+        this.authClient.send('admin.get-customers', {}).toPromise(),
+        this.authClient.send('admin.get-merchants', {}).toPromise(),
+        this.authClient.send('orders.find-all', {}).toPromise(),
+      ]);
+
+      const totalCust = Array.isArray(customers) ? customers.length : 0;
+      const totalMerch = Array.isArray(merchants) ? merchants.length : 0;
       const totalOrd = Array.isArray(orders) ? orders.length : 0;
-      
+
       return {
         totalOrders: totalOrd,
         totalCustomers: totalCust,
         totalMerchants: totalMerch,
-        totalRevenue: Array.isArray(orders) ? orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0) : 0
+        totalRevenue: Array.isArray(orders) ? orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0) : 0,
       };
     } catch {
       return {
         totalOrders: 0,
-        totalCustomers: 1,
-        totalMerchants: 1,
-        totalRevenue: 0
+        totalCustomers: 0,
+        totalMerchants: 0,
+        totalRevenue: 0,
       };
     }
-  }
-
-  @Get('orders/:id')
-  getOrder(@Param('id') id: string) {
-    return this.authClient.send('orders.find-one', { id });
-  }
-
-  @Patch('admin/orders/:id/status')
-  updateAdminOrderStatus(@Param('id') id: string, @Body() body: any) {
-    return this.updateOrderStatus(id, body);
-  }
-
-  @Patch('orders/:id/status')
-  async updateOrderStatus(@Param('id') id: string, @Body() body: any) {
-    const res = await this.authClient.send('orders.update-status', { id, data: { status: body.status } }).toPromise();
-    
-    if (body.status === 'PREPARING' || body.status === 'READY') {
-      mockRides.push({
-        id: 'RIDE-' + Math.floor(Math.random() * 10000),
-        pickupAddress: 'Shop Location',
-        dropoffAddress: res?.deliveryAddress || 'Customer Delivery Address',
-        rideType: 'Delivery',
-        createdAt: new Date().toISOString()
-      });
-    }
-    return { success: true, status: body.status, order: res };
-  }
-
-  @Get('deliveries/rides/available')
-  getAvailableRides() {
-    return mockRides;
   }
 }
