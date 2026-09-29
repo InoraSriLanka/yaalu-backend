@@ -163,6 +163,35 @@ export class DeliveryServiceService {
       throw new NotFoundException('Ride request not found in database: ' + id);
     }
 
+    if (ride.acceptedDriverId) {
+      try {
+        const rider = await this.prisma.riderProfile.findFirst({
+          where: {
+            OR: [
+              { id: ride.acceptedDriverId },
+              { userId: ride.acceptedDriverId },
+            ],
+          },
+        });
+        if (rider) {
+          (ride as any).acceptedDriver = {
+            id: rider.id,
+            userId: rider.userId,
+            fullName: rider.fullName || 'Rider Partner',
+            phoneNumber: rider.phoneNumber || '0771234567',
+            profilePhotoUrl: rider.profilePhotoUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200',
+            vehicleNumber: rider.vehicleNumber || 'WP CB-4829',
+            vehicleModel: rider.vehicleModel || rider.vehicleType || 'Motorbike',
+            vehicleColor: (rider as any).vehicleColor || 'Yellow / Black',
+            vehiclePhotoUrl: rider.licenseFrontUrl || 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?q=80&w=300',
+            currentLatitude: rider.currentLatitude || 6.9271,
+            currentLongitude: rider.currentLongitude || 79.8612,
+            rating: rider.rating || 4.9,
+          };
+        }
+      } catch (e) {}
+    }
+
     return ride;
   }
 
