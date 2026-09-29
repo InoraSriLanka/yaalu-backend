@@ -51,12 +51,12 @@ export class DeliveryServiceService {
 
   private normalizeVehicleType(raw?: string): string {
     if (!raw) return 'THREE_WHEEL';
-    const clean = raw.trim().toUpperCase();
-    if (clean === 'BIKE' || clean === 'MOTORBIKE') return 'MOTORBIKE';
-    if (clean === 'FLEX' || clean === 'THREE_WHEEL' || clean === 'TUKTUK') return 'THREE_WHEEL';
-    if (clean === 'LUXURY' || clean === 'LUXURY_CAR' || clean === 'PREMIUM' || clean === 'LUX') return 'LUXURY_CAR';
-    if (clean === 'MINI' || clean === 'CAR' || clean === 'NORMAL_CAR') return 'CAR';
-    if (clean === 'VAN') return 'VAN';
+    const clean = raw.trim().toUpperCase().replace(/[\s\-_]/g, '');
+    if (clean === 'BIKE' || clean === 'MOTORBIKE' || clean === 'SCOOTER') return 'MOTORBIKE';
+    if (clean === 'FLEX' || clean === 'THREEWHEEL' || clean === 'TUKTUK' || clean === 'TUK' || clean === 'TRICK') return 'THREE_WHEEL';
+    if (clean === 'LUXURY' || clean === 'LUXURYCAR' || clean === 'PREMIUM' || clean === 'LUX') return 'LUXURY_CAR';
+    if (clean === 'MINI' || clean === 'CAR' || clean === 'NORMALCAR' || clean === 'CAB' || clean === 'SEDAN') return 'CAR';
+    if (clean === 'VAN' || clean === 'CARGO') return 'VAN';
     return clean;
   }
 
@@ -65,23 +65,25 @@ export class DeliveryServiceService {
     const isBidding = dto.rideType === 'BIDDING';
 
     const dbVehicleType = this.normalizeVehicleType(dto.selectedVehicleType);
-    const fareConfig = await this.prisma.fareSetting.findUnique({
+    let fareConfig = await this.prisma.fareSetting.findUnique({
       where: { vehicleType: dbVehicleType },
     });
 
     if (!fareConfig) {
-      throw new NotFoundException(`Fare setting rate parameters not found in database for vehicle type: ${dbVehicleType}`);
+      fareConfig = await this.prisma.fareSetting.findFirst({
+        where: { isActive: true },
+      });
     }
 
-    const B = fareConfig.petrolPrice;
-    const C = fareConfig.twoTOilRatio;
-    const D = fareConfig.twoTOilPrice;
-    const F = fareConfig.mileageKmPerLitre;
-    const G = fareConfig.otherRunningCostPerKm;
-    const H = fareConfig.fixedCostPerKm;
-    const multiplier = fareConfig.profitMultiplier;
-    const K = fareConfig.baseChargeFirstKm;
-    const minFare = fareConfig.minimumFare;
+    const B = fareConfig?.petrolPrice ?? 370;
+    const C = fareConfig?.twoTOilRatio ?? 0;
+    const D = fareConfig?.twoTOilPrice ?? 1500;
+    const F = fareConfig?.mileageKmPerLitre ?? 25;
+    const G = fareConfig?.otherRunningCostPerKm ?? 5;
+    const H = fareConfig?.fixedCostPerKm ?? 3;
+    const multiplier = fareConfig?.profitMultiplier ?? 3;
+    const K = fareConfig?.baseChargeFirstKm ?? 150;
+    const minFare = fareConfig?.minimumFare ?? 150;
 
     const A = B + (C * D);
     const E = F > 0 ? A / F : 0;

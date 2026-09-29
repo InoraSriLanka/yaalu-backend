@@ -23,10 +23,11 @@ services:
       - '5735:5672'
       - '15672:15672'
     healthcheck:
-      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
-      interval: 5s
-      timeout: 5s
-      retries: 10
+      test: ['CMD-SHELL', 'rabbitmq-diagnostics -q ping || exit 1']
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 20s
 
   api-gateway:
     build:

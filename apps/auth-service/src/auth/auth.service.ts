@@ -155,8 +155,23 @@ export class AuthService {
     }
 
     const shop = user.shopProfile;
-    const fullName = user.fullName || activeProfile?.fullName || activeProfile?.ownerName || safeUser.email?.split('@')[0] || '';
-    const phoneNumber = activeProfile?.phoneNumber || activeProfile?.ownerPhone || '';
+    const emailStr = safeUser.email || '';
+    const isGeneratedPhoneEmail = emailStr.endsWith('@yaalu.app');
+
+    let phoneNumber = activeProfile?.phoneNumber || activeProfile?.ownerPhone || safeUser.phoneNumber || '';
+    if (!phoneNumber && isGeneratedPhoneEmail) {
+      phoneNumber = emailStr.split('@')[0];
+    }
+    if (!phoneNumber && user.fullName && (user.fullName.startsWith('+') || /^\+?\d{8,15}$/.test(user.fullName.replace(/[\s\-()]/g, '')))) {
+      phoneNumber = user.fullName;
+    }
+
+    let fullName = user.fullName || activeProfile?.fullName || activeProfile?.ownerName || '';
+    if (fullName && (fullName.startsWith('+') || /^\+?\d{8,15}$/.test(fullName.replace(/[\s\-()]/g, '')))) {
+      fullName = '';
+    }
+
+    const cleanEmail = isGeneratedPhoneEmail ? '' : emailStr;
     const profilePicture = activeProfile?.profilePicture || '';
     const nicNumber = activeProfile?.nicNumber || '';
     const city = activeProfile?.city || '';
@@ -164,6 +179,7 @@ export class AuthService {
 
     const formattedUser = {
       ...safeUser,
+      email: cleanEmail,
       name: fullName,
       fullName: fullName,
       phoneNumber: phoneNumber,
@@ -209,21 +225,11 @@ export class AuthService {
   }
 
   async register(dto: any) {
-    const mobile = (dto.contactNumber || dto.mobile || dto.phoneNumber || dto.phone || '').trim();
+    let mobile = (dto.contactNumber || dto.mobile || dto.phoneNumber || dto.phone || '').trim();
     const email = dto.email ? dto.email.trim().toLowerCase() : '';
 
-    const existing =
-      (email ? await this.findUserByPhoneOrEmail(email) : null) ||
-      (mobile ? await this.findUserByPhoneOrEmail(mobile) : null);
-
-    if (existing) {
-      const accessToken = 'dev-token-' + existing.id;
-      return {
-        success: true,
-        verified: true,
-        message: 'Account already registered. Logging in automatically.',
-        ...this.formatUserAuthResponse(existing, accessToken),
-      };
+    if (!mobile && email && email.endsWith('@yaalu.app')) {
+      mobile = email.split('@')[0];
     }
 
     const role = (dto.role || dto.roleName || dto.userRole || dto.type || 'CUSTOMER').toUpperCase();
@@ -231,10 +237,133 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(rawPassword, 10);
 
     const generatedEmail = email || (mobile ? `${mobile.replace(/[\s\-()]/g, '')}@yaalu.app` : `user_${Date.now()}@yaalu.app`);
-    const fullName = dto.fullName || dto.name || [dto.firstName, dto.lastName].filter(Boolean).join(' ') || 'Yaalu User';
+    let fullName = dto.fullName || dto.name || [dto.firstName, dto.lastName].filter(Boolean).join(' ') || '';
+
+    // If fullName looks like a phone number, don't pollute fullName field
+    if (fullName && (fullName.startsWith('+') || /^\+?\d{8,15}$/.test(fullName.replace(/[\s\-()]/g, '')))) {
+      fullName = '';
+    }
 
     const photoInput = dto.profilePicture || dto.profilePhoto || dto.avatar || dto.photo || '';
     const uploadedPhotoUrl = photoInput ? await this.resolveCloudinaryPhoto(photoInput, 'yaalu/profiles') : null;
+
+    const existing =
+      (email ? await this.findUserByPhoneOrEmail(email) : null) ||
+      (mobile ? await this.findUserByPhoneOrEmail(mobile) : null);
+
+    if (existing) {
+      // Update existing user credentials and profiles with the incoming registration payload
+      const userUpdateData: any = {};
+      if (hashedPassword) userUpdateData.password = hashedPassword;
+      if (fullName) userUpdateData.fullName = fullName;
+      if (email && (existing.email.endsWith('@yaalu.app') || !existing.email)) {
+        userUpdateData.email = email;
+      }
+
+      if (Object.keys(userUpdateData).length > 0) {
+        await this.prisma.user.update({
+          where: { id: existing.id },
+          data: userUpdateData,
+        });
+      }
+
+      const finalPhone = mobile || (generatedEmail.endsWith('@yaalu.app') ? generatedEmail.split('@')[0] : existing.customerProfile?.phoneNumber || null);
+
+      if (role === 'CUSTOMER') {
+        if (existing.customerProfile) {
+          await this.prisma.customerProfile.update({
+            where: { id: existing.customerProfile.id },
+            data: {
+              fullName: fullName || existing.customerProfile.fullName || '',
+              phoneNumber: finalPhone || existing.customerProfile.phoneNumber,
+              profilePicture: uploadedPhotoUrl || existing.customerProfile.profilePicture,
+              nicNumber: dto.nicNumber || dto.nic || existing.customerProfile.nicNumber,
+              city: dto.city || existing.customerProfile.city,
+              deliveryAddress: dto.address || dto.deliveryAddress || existing.customerProfile.deliveryAddress,
+            },
+          });
+        } else {
+          await this.prisma.customerProfile.create({
+            data: {
+              userId: existing.id,
+              fullName: fullName || '',
+              phoneNumber: finalPhone,
+              profilePicture: uploadedPhotoUrl,
+              nicNumber: dto.nicNumber || dto.nic || null,
+              city: dto.city || null,
+              deliveryAddress: dto.address || dto.deliveryAddress || null,
+            },
+          });
+        }
+      } else if (role === 'SHOP' || role === 'MERCHANT') {
+        if (existing.shopProfile) {
+          await this.prisma.shopProfile.update({
+            where: { id: existing.shopProfile.id },
+            data: {
+              shopName: dto.shopName || dto.businessName || existing.shopProfile.shopName,
+              ownerName: fullName || existing.shopProfile.ownerName,
+              ownerPhone: finalPhone || existing.shopProfile.ownerPhone,
+              ownerEmail: email || existing.shopProfile.ownerEmail,
+              shopAddress: dto.businessAddress || dto.shopAddress || dto.address || existing.shopProfile.shopAddress,
+            },
+          });
+        } else {
+          await this.prisma.shopProfile.create({
+            data: {
+              userId: existing.id,
+              shopName: dto.shopName || dto.businessName || `${fullName || 'Merchant'}'s Shop`,
+              ownerName: fullName,
+              ownerPhone: finalPhone || '',
+              ownerEmail: email || existing.email,
+              shopAddress: dto.businessAddress || dto.shopAddress || dto.address || 'Colombo',
+            },
+          });
+        }
+      } else if (role === 'RIDER' || role === 'DRIVER') {
+        if (existing.riderProfile) {
+          await this.prisma.riderProfile.update({
+            where: { id: existing.riderProfile.id },
+            data: {
+              fullName: fullName || existing.riderProfile.fullName,
+              phoneNumber: mobile || existing.riderProfile.phoneNumber,
+              vehicleType: dto.vehicleType || existing.riderProfile.vehicleType,
+              vehicleNumber: dto.vehicleNumber || dto.plateNumber || existing.riderProfile.vehicleNumber,
+              vehicleModel: dto.vehicleModel || existing.riderProfile.vehicleModel,
+              licenseNumber: dto.licenseNumber || existing.riderProfile.licenseNumber,
+            },
+          });
+        } else {
+          await this.prisma.riderProfile.create({
+            data: {
+              userId: existing.id,
+              fullName: fullName,
+              phoneNumber: mobile || '',
+              vehicleType: dto.vehicleType || 'MOTORBIKE',
+              vehicleNumber: dto.vehicleNumber || dto.plateNumber || 'PENDING',
+              vehicleModel: dto.vehicleModel || '',
+              licenseNumber: dto.licenseNumber || 'PENDING',
+            },
+          });
+        }
+      }
+
+      const updatedUser = await this.prisma.user.findUnique({
+        where: { id: existing.id },
+        include: {
+          customerProfile: true,
+          shopProfile: true,
+          riderProfile: true,
+        },
+      });
+
+      const accessToken = 'dev-token-' + existing.id;
+      return {
+        success: true,
+        verified: true,
+        message: 'Account registered and updated successfully.',
+        ...this.formatUserAuthResponse(updatedUser, accessToken),
+      };
+    }
 
     const otp = this.generateOtp();
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
@@ -244,18 +373,20 @@ export class AuthService {
         email: generatedEmail,
         password: hashedPassword,
         role: role as any,
-        fullName: fullName,
+        fullName: fullName || null,
         otp,
         otpExpiresAt,
       },
     });
 
+    const finalPhone = mobile || (generatedEmail.endsWith('@yaalu.app') ? generatedEmail.split('@')[0] : null);
+
     if (role === 'CUSTOMER') {
       await this.prisma.customerProfile.create({
         data: {
           userId: user.id,
-          fullName: fullName,
-          phoneNumber: mobile || null,
+          fullName: fullName || '',
+          phoneNumber: finalPhone,
           profilePicture: uploadedPhotoUrl,
           nicNumber: dto.nicNumber || dto.nic || null,
           city: dto.city || null,
@@ -266,9 +397,9 @@ export class AuthService {
       await this.prisma.shopProfile.create({
         data: {
           userId: user.id,
-          shopName: dto.shopName || dto.businessName || `${fullName}'s Shop`,
+          shopName: dto.shopName || dto.businessName || `${fullName || 'Merchant'}'s Shop`,
           ownerName: fullName,
-          ownerPhone: mobile || '',
+          ownerPhone: finalPhone || '',
           ownerEmail: generatedEmail,
           shopAddress: dto.businessAddress || dto.shopAddress || dto.address || 'Colombo',
         },
@@ -558,13 +689,7 @@ export class AuthService {
     }
 
     if (!user) {
-      user = await this.prisma.user.findFirst({
-        include: { customerProfile: true, shopProfile: true, riderProfile: true },
-      });
-    }
-
-    if (!user) {
-      throw new BadRequestException('User profile not found in database.');
+      throw new BadRequestException('User profile not found in database. Valid user ID or email is required.');
     }
 
     const first = (dto.firstName || '').trim();
