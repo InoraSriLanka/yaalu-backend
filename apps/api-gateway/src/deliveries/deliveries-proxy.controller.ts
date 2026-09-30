@@ -1,6 +1,6 @@
 import { IsNumber, IsOptional, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
-import { Body, Controller, Get, Param, Post, NotFoundException } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, NotFoundException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { DeliveryServiceService } from '@app/delivery-service/delivery-service.service';
 import { PrismaService } from '@app/common';
@@ -49,9 +49,26 @@ export class DeliveriesProxyController {
 
   // ---------------- Rides & Driver Bidding REST Proxy Endpoints ----------------
 
+  @Get('nearby-riders')
+  @ApiOperation({ summary: 'Find available nearby riders matching vehicle requirement and radius' })
+  async getNearbyRiders(
+    @Query('pickupLat') pickupLat?: string,
+    @Query('pickupLng') pickupLng?: string,
+    @Query('vehicleType') vehicleType?: string,
+    @Query('radiusKm') radiusKm?: string,
+  ) {
+    return this.deliveryServiceService.getNearbyRiders({
+      pickupLat: pickupLat ? parseFloat(pickupLat) : undefined,
+      pickupLng: pickupLng ? parseFloat(pickupLng) : undefined,
+      vehicleType: vehicleType || 'THREE_WHEEL',
+      radiusKm: radiusKm ? parseFloat(radiusKm) : 5.0,
+    });
+  }
+
   @Post('rides/request')
   @ApiOperation({ summary: 'Request a standard or bidding ride' })
   createRide(@Body() dto: CreateRideRequestDto) {
+
     console.log('[DeliveriesProxyController createRide DTO]:', JSON.stringify(dto));
     return this.deliveryServiceService.createRideRequest(dto);
   }
