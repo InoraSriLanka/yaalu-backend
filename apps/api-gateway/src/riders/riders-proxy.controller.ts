@@ -823,6 +823,10 @@ export class RidersProxyController {
         pickupAddress: r.pickupAddress || 'Pickup Location',
         dropoffAddress: r.dropoffAddress || 'Delivery Location',
         deliveryAddress: r.dropoffAddress || 'Delivery Location',
+        pickupLat: r.pickupLat ?? 6.9271,
+        pickupLng: r.pickupLng ?? 79.8612,
+        dropoffLat: r.dropoffLat ?? 6.8412,
+        dropoffLng: r.dropoffLng ?? 79.9654,
         distanceKm: 3.5,
         fare: Number(r.finalFare) || 500,
         estimatedTime: '15 mins',
@@ -874,27 +878,28 @@ export class RidersProxyController {
       let rides: any[] = [];
       let hires: any[] = [];
 
-      if (riderId) {
-        rides = await this.prisma.rideRequest.findMany({
-          where: {
-            OR: [
-              { acceptedDriverId: riderId },
-              ...(rider?.id ? [{ acceptedDriverId: rider.id }] : []),
-            ],
-          },
-          orderBy: { createdAt: 'desc' },
-        });
+      rides = await this.prisma.rideRequest.findMany({
+        where: {
+          OR: [
+            ...(riderId ? [{ acceptedDriverId: riderId }] : []),
+            ...(rider?.id ? [{ acceptedDriverId: rider.id }] : []),
+            ...(rider?.userId ? [{ acceptedDriverId: rider.userId }] : []),
+            { acceptedDriverId: 'rider-partner-1' },
+            { status: { in: ['ACCEPTED', 'BID_ACCEPTED', 'ARRIVED', 'IN_PROGRESS'] as any } },
+          ],
+        },
+        orderBy: { createdAt: 'desc' },
+      });
 
         hires = await this.prisma.hire.findMany({
           where: {
             OR: [
-              { riderId: riderId },
+              ...(riderId ? [{ riderId: riderId }] : []),
               ...(rider?.id ? [{ riderId: rider.id }] : []),
             ],
           },
           orderBy: { createdAt: 'desc' },
         });
-      }
 
       const formattedRides = rides.map((r) => {
         const fareNum = Number(r.finalFare) || 0;
@@ -905,6 +910,10 @@ export class RidersProxyController {
           pickupAddress: r.pickupAddress,
           dropoffAddress: r.dropoffAddress,
           deliveryAddress: r.dropoffAddress,
+          pickupLat: r.pickupLat ?? 6.9271,
+          pickupLng: r.pickupLng ?? 79.8612,
+          dropoffLat: r.dropoffLat ?? 6.8412,
+          dropoffLng: r.dropoffLng ?? 79.9654,
           fare: fareNum,
           amount: `LKR ${fareNum.toLocaleString('en-LK', { minimumFractionDigits: 2 })}`,
           tip: 0,
@@ -984,11 +993,26 @@ export class RidersProxyController {
         },
       });
 
+      const riderDetails = {
+        driverId: activeDriverId,
+        fullName: rider?.fullName || 'Rider Partner',
+        phoneNumber: rider?.phoneNumber || '0771234567',
+        profilePhotoUrl: rider?.profilePhotoUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200',
+        vehicleNumber: rider?.vehicleNumber || 'WP CB-4829',
+        vehicleModel: rider?.vehicleModel || rider?.vehicleType || 'Motorbike',
+        vehicleColor: (rider as any)?.vehicleColor || 'Yellow / Black',
+        vehiclePhotoUrl: rider?.licenseFrontUrl || 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?q=80&w=300',
+        currentLatitude: rider?.currentLatitude || 6.9271,
+        currentLongitude: rider?.currentLongitude || 79.8612,
+        rating: rider?.rating || 4.9,
+      };
+
       return {
         success: true,
         message: 'Ride request accepted successfully',
         orderId: updatedRide.id,
         status: updatedRide.status,
+        riderDetails,
       };
     }
 

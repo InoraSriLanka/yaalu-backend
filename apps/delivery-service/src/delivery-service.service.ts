@@ -51,12 +51,12 @@ export class DeliveryServiceService {
 
   private normalizeVehicleType(raw?: string): string {
     if (!raw) return 'THREE_WHEEL';
-    const clean = raw.trim().toUpperCase();
-    if (clean === 'BIKE' || clean === 'MOTORBIKE') return 'MOTORBIKE';
-    if (clean === 'FLEX' || clean === 'THREE_WHEEL' || clean === 'TUKTUK') return 'THREE_WHEEL';
-    if (clean === 'LUXURY' || clean === 'LUXURY_CAR' || clean === 'PREMIUM' || clean === 'LUX') return 'LUXURY_CAR';
-    if (clean === 'MINI' || clean === 'CAR' || clean === 'NORMAL_CAR') return 'CAR';
-    if (clean === 'VAN') return 'VAN';
+    const clean = raw.trim().toUpperCase().replace(/[\s\-_]/g, '');
+    if (clean === 'BIKE' || clean === 'MOTORBIKE' || clean === 'SCOOTER') return 'MOTORBIKE';
+    if (clean === 'FLEX' || clean === 'THREEWHEEL' || clean === 'TUKTUK' || clean === 'TUK' || clean === 'TRICK') return 'THREE_WHEEL';
+    if (clean === 'LUXURY' || clean === 'LUXURYCAR' || clean === 'PREMIUM' || clean === 'LUX') return 'LUXURY_CAR';
+    if (clean === 'MINI' || clean === 'CAR' || clean === 'NORMALCAR' || clean === 'CAB' || clean === 'SEDAN') return 'CAR';
+    if (clean === 'VAN' || clean === 'CARGO') return 'VAN';
     return clean;
   }
 
@@ -65,23 +65,25 @@ export class DeliveryServiceService {
     const isBidding = dto.rideType === 'BIDDING';
 
     const dbVehicleType = this.normalizeVehicleType(dto.selectedVehicleType);
-    const fareConfig = await this.prisma.fareSetting.findUnique({
+    let fareConfig = await this.prisma.fareSetting.findUnique({
       where: { vehicleType: dbVehicleType },
     });
 
     if (!fareConfig) {
-      throw new NotFoundException(`Fare setting rate parameters not found in database for vehicle type: ${dbVehicleType}`);
+      fareConfig = await this.prisma.fareSetting.findFirst({
+        where: { isActive: true },
+      });
     }
 
-    const B = fareConfig.petrolPrice;
-    const C = fareConfig.twoTOilRatio;
-    const D = fareConfig.twoTOilPrice;
-    const F = fareConfig.mileageKmPerLitre;
-    const G = fareConfig.otherRunningCostPerKm;
-    const H = fareConfig.fixedCostPerKm;
-    const multiplier = fareConfig.profitMultiplier;
-    const K = fareConfig.baseChargeFirstKm;
-    const minFare = fareConfig.minimumFare;
+    const B = fareConfig?.petrolPrice ?? 370;
+    const C = fareConfig?.twoTOilRatio ?? 0;
+    const D = fareConfig?.twoTOilPrice ?? 1500;
+    const F = fareConfig?.mileageKmPerLitre ?? 25;
+    const G = fareConfig?.otherRunningCostPerKm ?? 5;
+    const H = fareConfig?.fixedCostPerKm ?? 3;
+    const multiplier = fareConfig?.profitMultiplier ?? 3;
+    const K = fareConfig?.baseChargeFirstKm ?? 150;
+    const minFare = fareConfig?.minimumFare ?? 150;
 
     const A = B + (C * D);
     const E = F > 0 ? A / F : 0;
@@ -100,7 +102,7 @@ export class DeliveryServiceService {
 
     const ride = await this.prisma.rideRequest.create({
       data: {
-        customerId: dto.customerId || '47e66186-e834-43e9-bedb-af331abd09dd',
+        customerId: dto.customerId || '',
         pickupAddress: dto.pickupAddress,
         dropoffAddress: dto.dropoffAddress,
         pickupLat: dto.pickupLat !== undefined ? dto.pickupLat : null,
@@ -108,7 +110,7 @@ export class DeliveryServiceService {
         dropoffLat: dto.dropoffLat !== undefined ? dto.dropoffLat : null,
         dropoffLng: dto.dropoffLng !== undefined ? dto.dropoffLng : null,
         rideType: isBidding ? 'BIDDING' : 'STANDARD',
-        selectedVehicleType: dto.selectedVehicleType || 'bike',
+        selectedVehicleType: dto.selectedVehicleType || 'THREE_WHEEL',
         tripCategory: (dto.tripCategory as any) || 'ONE_WAY',
         status: isBidding ? 'BIDDING_ACTIVE' : 'SEARCHING',
         biddingTimerSeconds: 480,
@@ -119,30 +121,25 @@ export class DeliveryServiceService {
     });
 
     if (isBidding) {
-      await this.prisma.driverBid.createMany({
-        data: [
-          {
+      let dbRiders: any[] = [];
+      try {
+        dbRiders = await this.prisma.riderProfile.findMany({ take: 5 });
+      } catch (e) {}
+
+      if (dbRiders && dbRiders.length > 0) {
+        await this.prisma.driverBid.createMany({
+          data: dbRiders.map((r, idx) => ({
             rideRequestId: ride.id,
-            driverId: 'drv-ravi-101',
-            driverName: 'Ravi S.',
-            rating: 5.0,
-            vehicleModel: dbVehicleType === 'THREE_WHEEL' ? 'TVS King Tuk Tuk - Yellow' : (dbVehicleType === 'CAR' ? 'Toyota Prius - White' : 'Yamaha FZ - Black'),
-            vehicleNumber: 'WP CAH-1234',
-            proposedFare: Math.round(calculatedFare * 0.95 * 100) / 100,
+            driverId: r.userId || r.id,
+            driverName: r.fullName || r.vehicleNumber || 'Driver',
+            rating: r.rating || 5.0,
+            vehicleModel: r.vehicleModel || r.vehicleType || '',
+            vehicleNumber: r.vehicleNumber || '',
+            proposedFare: Math.round(calculatedFare * (0.95 + idx * 0.05) * 100) / 100,
             status: 'PENDING',
-          },
-          {
-            rideRequestId: ride.id,
-            driverId: 'drv-kasun-102',
-            driverName: 'Kasun P.',
-            rating: 4.7,
-            vehicleModel: dbVehicleType === 'THREE_WHEEL' ? 'Bajaj RE - Red' : (dbVehicleType === 'CAR' ? 'Honda Grace - Silver' : 'Honda Dio - Blue'),
-            vehicleNumber: 'WP KAZ-5678',
-            proposedFare: Math.round(calculatedFare * 1.05 * 100) / 100,
-            status: 'PENDING',
-          },
-        ],
-      });
+          })),
+        });
+      }
     }
 
     return this.getRideRequest(ride.id);
@@ -161,6 +158,36 @@ export class DeliveryServiceService {
 
     if (!ride) {
       throw new NotFoundException('Ride request not found in database: ' + id);
+    }
+
+    if (ride.acceptedDriverId) {
+      try {
+        const rider = await this.prisma.riderProfile.findFirst({
+          where: {
+            OR: [
+              { id: ride.acceptedDriverId },
+              { userId: ride.acceptedDriverId },
+            ],
+          },
+        });
+        if (rider) {
+          (ride as any).acceptedDriver = {
+            id: rider.id,
+            userId: rider.userId,
+            fullName: rider.fullName || '',
+            phoneNumber: rider.phoneNumber || '',
+            profilePhotoUrl: rider.profilePhotoUrl || '',
+            vehicleNumber: rider.vehicleNumber || '',
+            vehicleModel: rider.vehicleModel || rider.vehicleType || '',
+            vehicleColor: (rider as any).vehicleColor || '',
+            vehiclePhotoUrl: rider.licenseFrontUrl || '',
+            currentLatitude: rider.currentLatitude || null,
+            currentLongitude: rider.currentLongitude || null,
+            rating: rider.rating || 5.0,
+            deliveriesCompleted: rider.deliveriesCompleted || 0,
+          };
+        }
+      } catch (e) {}
     }
 
     return ride;
@@ -215,8 +242,9 @@ export class DeliveryServiceService {
       });
     }
 
-    const finalFare = acceptedBid ? acceptedBid.proposedFare : 1350.0;
-    const acceptedDriverId = acceptedBid ? acceptedBid.driverId : 'drv-ravi-101';
+    const ride = await this.prisma.rideRequest.findUnique({ where: { id: dto.rideRequestId } });
+    const finalFare = acceptedBid ? acceptedBid.proposedFare : (ride?.finalFare || 0);
+    const acceptedDriverId = acceptedBid ? acceptedBid.driverId : null;
 
     const updatedRide = await this.prisma.rideRequest.update({
       where: { id: dto.rideRequestId },
@@ -236,7 +264,7 @@ export class DeliveryServiceService {
     if (!ride) {
       throw new NotFoundException('Ride request not found: ' + dto.rideRequestId);
     }
-    if (dto.pin !== ride.startPin && dto.pin !== '4200') {
+    if (dto.pin !== ride.startPin) {
       throw new Error('Invalid OTP code. Please enter the 4-digit OTP sent to your phone.');
     }
     const updatedRide = await this.prisma.rideRequest.update({
@@ -277,8 +305,8 @@ export class DeliveryServiceService {
       },
       create: {
         rideRequestId: dto.rideRequestId,
-        customerId: dto.customerId || '47e66186-e834-43e9-bedb-af331abd09dd',
-        driverId: dto.driverId || 'drv-ravi-101',
+        customerId: dto.customerId || '',
+        driverId: dto.driverId || '',
         rating: dto.rating,
         compliments: dto.compliments || [],
         comment: dto.comment || '',
@@ -292,4 +320,79 @@ export class DeliveryServiceService {
       feedback,
     };
   }
+
+  async getNearbyRiders(query: { pickupLat?: number; pickupLng?: number; vehicleType?: string; radiusKm?: number }) {
+    const pLat = query.pickupLat ?? 6.9271;
+    const pLng = query.pickupLng ?? 79.8612;
+    const normVehicle = this.normalizeVehicleType(query.vehicleType);
+
+    let riders: any[] = [];
+    try {
+      riders = await this.prisma.riderProfile.findMany({
+        include: {
+          user: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+    } catch (e) {
+      console.warn('[getNearbyRiders Prisma DB error]:', e);
+    }
+
+    if (!riders || riders.length === 0) {
+      return [];
+    }
+
+    const mappedRealRiders = riders.map((r, index) => {
+      const dbVehNorm = this.normalizeVehicleType(r.vehicleType);
+      
+      const rLat = (r.currentLatitude !== null && r.currentLatitude !== undefined && !isNaN(r.currentLatitude) && r.currentLatitude !== 0)
+        ? r.currentLatitude
+        : pLat + (index === 0 ? 0.003 : (index % 2 === 0 ? 0.004 * (index + 1) : -0.003 * (index + 1)));
+
+      const rLng = (r.currentLongitude !== null && r.currentLongitude !== undefined && !isNaN(r.currentLongitude) && r.currentLongitude !== 0)
+        ? r.currentLongitude
+        : pLng + (index === 0 ? 0.002 : (index % 2 === 0 ? -0.004 * (index + 1) : 0.005 * (index + 1)));
+
+      const dist = this.calcDistanceKm(pLat, pLng, rLat, rLng);
+      const etaMins = Math.max(1, Math.ceil((dist / 30) * 60) + 1);
+
+      const displayName = r.fullName || r.user?.fullName || r.user?.name || '';
+      const phone = r.phoneNumber || r.user?.phone || r.user?.phoneNumber || '';
+
+      return {
+        id: r.id,
+        userId: r.userId,
+        fullName: displayName,
+        phoneNumber: phone,
+        profilePhotoUrl: r.profilePhotoUrl || '',
+        vehicleType: r.vehicleType || normVehicle,
+        normalizedVehicleType: dbVehNorm,
+        vehicleModel: r.vehicleModel || r.vehicleType || '',
+        vehicleNumber: r.vehicleNumber || '',
+        rating: r.rating ?? 5.0,
+        deliveriesCompleted: r.deliveriesCompleted ?? 0,
+        currentLatitude: rLat,
+        currentLongitude: rLng,
+        distanceKm: Math.round(dist * 10) / 10,
+        etaMinutes: etaMins,
+        etaText: `In ${etaMins} min`,
+      };
+    });
+
+    const matchingRiders = mappedRealRiders.filter((r) => r.normalizedVehicleType === normVehicle);
+
+    if (matchingRiders.length > 0) {
+      return matchingRiders;
+    }
+
+    return mappedRealRiders.map((r) => ({
+      ...r,
+      normalizedVehicleType: normVehicle,
+    }));
+  }
 }
+
+
+

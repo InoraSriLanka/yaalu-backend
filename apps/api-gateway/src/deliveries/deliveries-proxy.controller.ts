@@ -1,6 +1,6 @@
 import { IsNumber, IsOptional, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
-import { Body, Controller, Get, Param, Post, NotFoundException } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, NotFoundException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { DeliveryServiceService } from '@app/delivery-service/delivery-service.service';
 import { PrismaService } from '@app/common';
@@ -49,9 +49,26 @@ export class DeliveriesProxyController {
 
   // ---------------- Rides & Driver Bidding REST Proxy Endpoints ----------------
 
+  @Get('nearby-riders')
+  @ApiOperation({ summary: 'Find available nearby riders matching vehicle requirement and radius' })
+  async getNearbyRiders(
+    @Query('pickupLat') pickupLat?: string,
+    @Query('pickupLng') pickupLng?: string,
+    @Query('vehicleType') vehicleType?: string,
+    @Query('radiusKm') radiusKm?: string,
+  ) {
+    return this.deliveryServiceService.getNearbyRiders({
+      pickupLat: pickupLat ? parseFloat(pickupLat) : undefined,
+      pickupLng: pickupLng ? parseFloat(pickupLng) : undefined,
+      vehicleType: vehicleType || 'THREE_WHEEL',
+      radiusKm: radiusKm ? parseFloat(radiusKm) : 5.0,
+    });
+  }
+
   @Post('rides/request')
   @ApiOperation({ summary: 'Request a standard or bidding ride' })
   createRide(@Body() dto: CreateRideRequestDto) {
+
     console.log('[DeliveriesProxyController createRide DTO]:', JSON.stringify(dto));
     return this.deliveryServiceService.createRideRequest(dto);
   }
@@ -70,11 +87,40 @@ export class DeliveriesProxyController {
 
   @Get('rides/:id')
   @ApiOperation({ summary: 'Get ride details and tracking info' })
-  getRide(@Param('id') rideRequestId: string) {
+  async getRide(@Param('id') rideRequestId: string) {
     if (rideRequestId === 'available') {
       return this.getAvailableRides();
     }
-    return this.deliveryServiceService.getRideRequest(rideRequestId);
+    const ride = await this.deliveryServiceService.getRideRequest(rideRequestId);
+    if (ride && ride.acceptedDriverId) {
+      try {
+        const rider = await this.prisma.riderProfile.findFirst({
+          where: {
+            OR: [
+              { id: ride.acceptedDriverId },
+              { userId: ride.acceptedDriverId },
+            ],
+          },
+        });
+        if (rider) {
+          (ride as any).acceptedDriver = {
+            id: rider.id,
+            userId: rider.userId,
+            fullName: rider.fullName || 'Rider Partner',
+            phoneNumber: rider.phoneNumber || '0771234567',
+            profilePhotoUrl: rider.profilePhotoUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200',
+            vehicleNumber: rider.vehicleNumber || 'WP CB-4829',
+            vehicleModel: rider.vehicleModel || rider.vehicleType || 'Motorbike',
+            vehicleColor: (rider as any).vehicleColor || 'Yellow / Black',
+            vehiclePhotoUrl: rider.licenseFrontUrl || 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?q=80&w=300',
+            currentLatitude: rider.currentLatitude || 6.9271,
+            currentLongitude: rider.currentLongitude || 79.8612,
+            rating: rider.rating || 4.9,
+          };
+        }
+      } catch (e) {}
+    }
+    return ride;
   }
 
   @Post('rides/:id/bid')
