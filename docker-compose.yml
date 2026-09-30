@@ -17,12 +17,18 @@ services:
       args:
         APP_NAME: api-gateway
     restart: unless-stopped
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     ports:
       - '3001:3001'
     environment:
       PORT: 3001
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:5432/yaalu_db?schema=public
       RABBITMQ_URL: amqp://rabbitmq:5672
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-yaalu}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-138828845892141}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-UJOpZyU7E4sX2Z3-j_W0LkeP5XA}
+      CLOUDINARY_UPLOAD_PRESET: ${CLOUDINARY_UPLOAD_PRESET:-yaalu_preset}
     volumes:
       - uploads_data:/usr/src/app/uploads
     depends_on:
@@ -35,9 +41,17 @@ services:
       args:
         APP_NAME: auth-service
     restart: unless-stopped
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     environment:
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:5432/yaalu_db?schema=public
       RABBITMQ_URL: amqp://rabbitmq:5672
+      DB_HOST: host.docker.internal
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: yaalu_db
+      DB_SYNCHRONIZE: 'false'
       SMS_API_TOKEN: ${SMS_API_TOKEN:-7194|zP9yVoY1EiX4zse7ZrE3mV18nBW01KNecSpIIu9Qb6c1349d}
       SMS_SENDER_ID: ${SMS_SENDER_ID:-YaaluApp}
       SMS_ENDPOINT: ${SMS_ENDPOINT:-https://app.text.lk/api/v3/sms/send}
@@ -51,8 +65,10 @@ services:
       args:
         APP_NAME: product-service
     restart: unless-stopped
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     environment:
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:5432/yaalu_db?schema=public
       RABBITMQ_URL: amqp://rabbitmq:5672
     depends_on:
       rabbitmq:
@@ -64,21 +80,10 @@ services:
       args:
         APP_NAME: order-service
     restart: unless-stopped
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      RABBITMQ_URL: amqp://rabbitmq:5672
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-
-  payment-service:
-    build:
-      context: .
-      args:
-        APP_NAME: payment-service
-    restart: unless-stopped
-    environment:
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:5432/yaalu_db?schema=public
       RABBITMQ_URL: amqp://rabbitmq:5672
     depends_on:
       rabbitmq:
@@ -90,9 +95,12 @@ services:
       args:
         APP_NAME: delivery-service
     restart: unless-stopped
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     environment:
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:5432/yaalu_db?schema=public
       RABBITMQ_URL: amqp://rabbitmq:5672
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY}
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -103,8 +111,25 @@ services:
       args:
         APP_NAME: notification-service
     restart: unless-stopped
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     environment:
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:5432/yaalu_db?schema=public
+      RABBITMQ_URL: amqp://rabbitmq:5672
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  payment-service:
+    build:
+      context: .
+      args:
+        APP_NAME: payment-service
+    restart: unless-stopped
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:5432/yaalu_db?schema=public
       RABBITMQ_URL: amqp://rabbitmq:5672
     depends_on:
       rabbitmq:

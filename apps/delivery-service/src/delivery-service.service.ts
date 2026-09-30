@@ -58,6 +58,22 @@ export class DeliveryServiceService {
     if (vType === 'flex') calculatedFare = 1439.30;
     if (vType === 'mini') calculatedFare = 1891.55;
 
+    // Fetch fare setting for bid timeout
+    let biddingTimerSeconds = 120; // Default 2 mins
+    try {
+      const vTypeUpper = dto.selectedVehicleType?.toUpperCase() || 'THREE_WHEEL';
+      // Mappings for rider vehicle types
+      const mappedType = vTypeUpper === 'FLEX' ? 'CAR' : (vTypeUpper === 'MINI' ? 'VAN' : (vTypeUpper === 'BIKE' ? 'MOTORBIKE' : vTypeUpper));
+      const fareSetting = await this.prisma.fareSetting.findFirst({
+        where: { vehicleType: mappedType }
+      });
+      if (fareSetting && fareSetting.bidTimeoutMinutes) {
+        biddingTimerSeconds = Math.round(fareSetting.bidTimeoutMinutes * 60);
+      }
+    } catch (e) {
+      console.error('[createRideRequest] Failed to fetch fare settings:', e);
+    }
+
     const ride = await this.prisma.rideRequest.create({
       data: {
         customerId: dto.customerId || '47e66186-e834-43e9-bedb-af331abd09dd',
@@ -71,7 +87,7 @@ export class DeliveryServiceService {
         selectedVehicleType: dto.selectedVehicleType || 'bike',
         tripCategory: (dto.tripCategory as any) || 'ONE_WAY',
         status: isBidding ? 'SEARCHING' : 'ACCEPTED',
-        biddingTimerSeconds: 480,
+        biddingTimerSeconds: biddingTimerSeconds,
         startPin: '4200',
         etaMinutes: 15,
         finalFare: isBidding ? 0 : calculatedFare,
@@ -110,6 +126,32 @@ export class DeliveryServiceService {
     if (this.ridesGateway) {
       this.ridesGateway.broadcastNewHireRequest(createdRide);
     }
+
+    // Start a timer to automatically pick the lowest bid when time expires
+    if (isBidding) {
+      const timerMs = ride.biddingTimerSeconds * 1000;
+      setTimeout(async () => {
+        try {
+          const currentRide = await this.prisma.rideRequest.findUnique({
+            where: { id: ride.id }
+          });
+          if (currentRide && currentRide.status === 'SEARCHING') {
+            await this.acceptBid({ rideRequestId: ride.id });
+            console.log(`[Bidding Timer Ended] Automatically accepted lowest bid for ride ${ride.id}`);
+            
+            // Optionally we might want to broadcast the update if gateway was available
+            const updatedRide = await this.getRideRequest(ride.id);
+            if (this.ridesGateway && updatedRide.status === 'ACCEPTED') {
+              // we can broadcast it, but we might not have a specific method in IRidesGateway for it. 
+              // at least we update the db.
+            }
+          }
+        } catch (error) {
+          console.error('[Bidding Timer Error] Failed to auto-accept bid:', error);
+        }
+      }, timerMs);
+    }
+
     return createdRide;
   }
 
@@ -179,7 +221,10 @@ export class DeliveryServiceService {
       } catch (e) {}
     }
     if (!acceptedBid) {
-      acceptedBid = await this.prisma.driverBid.findFirst({ where: { rideRequestId: dto.rideRequestId } });
+      acceptedBid = await this.prisma.driverBid.findFirst({
+        where: { rideRequestId: dto.rideRequestId },
+        orderBy: { proposedFare: 'asc' },
+      });
     }
 
     if (acceptedBid) {

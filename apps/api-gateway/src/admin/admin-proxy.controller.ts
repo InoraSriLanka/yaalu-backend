@@ -426,6 +426,30 @@ export class AdminProxyController {
     }));
   }
 
+  // ─── Fare Calculation & Pricing Engine ────────────────────
+  @Get('fare-settings')
+  async getFareSettings() {
+    return this.prisma.fareSetting.findMany();
+  }
+
+  @Patch('fare-settings')
+  async updateFareSettings(@Body() body: any) {
+    const existing = await this.prisma.fareSetting.findUnique({
+      where: { vehicleType: body.vehicleType },
+    });
+
+    if (existing) {
+      return this.prisma.fareSetting.update({
+        where: { vehicleType: body.vehicleType },
+        data: body,
+      });
+    } else {
+      return this.prisma.fareSetting.create({
+        data: body,
+      });
+    }
+  }
+
   // ─── Platform Stats ────────────────────────────────────────
   @Get('stats')
   async getStats() {

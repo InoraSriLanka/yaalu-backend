@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
 import { OrdersService } from '@app/order-service/orders/orders.service';
 import { OrderStatus } from '@prisma/client';
+import { RidesGateway } from '../rides/rides.gateway';
 
 function extractUserId(req: any): string {
   const auth = req.headers.authorization;
@@ -12,7 +13,10 @@ function extractUserId(req: any): string {
 
 @Controller('orders')
 export class OrdersProxyController {
-  constructor(private readonly ordersService: OrdersService) {}
+  constructor(
+    private readonly ordersService: OrdersService,
+    private readonly ridesGateway: RidesGateway
+  ) {}
 
   @Post()
   create(@Req() req: any, @Body() body: any) {
@@ -44,7 +48,25 @@ export class OrdersProxyController {
   }
 
   @Patch(':id/status')
-  updateStatus(@Param('id') id: string, @Body() body: { status: string }) {
-    return this.ordersService.updateStatus(id, body.status as OrderStatus);
+  async updateStatus(@Param('id') id: string, @Body() body: { status: string }) {
+    const updatedOrder = await this.ordersService.updateStatus(id, body.status as OrderStatus);
+    
+    if (body.status.toLowerCase() === 'confirmed') {
+      const deliveryRequest = {
+        id: updatedOrder.id,
+        pickupAddress: 'Yaalu Shop (Kottawa)',
+        dropoffAddress: updatedOrder.notes || updatedOrder.customerName || 'Customer Location',
+        rideType: 'DELIVERY',
+        selectedVehicleType: 'bike',
+        finalFare: Number(updatedOrder.totalAmount),
+        createdAt: updatedOrder.createdAt,
+        pickupLat: 6.8412, // Kottawa latitude (mock since ShopProfile lacks coords)
+        pickupLng: 79.9654  // Kottawa longitude
+      };
+      
+      this.ridesGateway.broadcastNewHireRequest(deliveryRequest);
+    }
+    
+    return updatedOrder;
   }
 }
