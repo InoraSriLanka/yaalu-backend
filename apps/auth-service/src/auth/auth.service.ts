@@ -460,13 +460,14 @@ export class AuthService {
 
     const shop = user.shopProfile;
     const customer = user.customerProfile;
+    const rider = user.riderProfile;
 
     const accessToken = `dev-token-${user.id}`;
     const { password, ...userResult } = user;
 
-    const extractedMobile = customer?.phone || shop?.ownerPhone || mobile;
-    const fullName = customer?.fullName || shop?.ownerName || '';
-    const address = customer?.deliveryAddress || shop?.shopAddress || shop?.outletAddress || '';
+    const extractedMobile = customer?.phone || rider?.phone || shop?.ownerPhone || mobile;
+    const fullName = user.fullName || customer?.fullName || shop?.ownerName || '';
+    const address = customer?.deliveryAddress || rider?.address || shop?.shopAddress || shop?.outletAddress || '';
 
     const userData = {
       ...userResult,
@@ -478,16 +479,32 @@ export class AuthService {
       address,
     };
 
+    const riderData = rider ? {
+      ...rider,
+      id: user.id,
+      userId: user.id,
+      email: user.email,
+      fullName: user.fullName || fullName || 'Rider Partner',
+      role: user.role,
+      vehicleType: rider.vehicleType,
+      vehicleNumber: rider.vehicleNumber,
+      status: rider.status || 'AVAILABLE',
+      isApproved: rider.isApproved || false,
+    } : undefined;
+
     return {
       accessToken,
       access_token: accessToken,
       user: userData,
-      merchant: {
-        ...userData,
-        shop,
-        shopName: shop?.shopName || '',
-        businessAddress: shop?.outletAddress || shop?.shopAddress || '',
-      },
+      ...(riderData ? { rider: riderData } : {}),
+      ...(shop ? {
+        merchant: {
+          ...userData,
+          shop,
+          shopName: shop?.shopName || '',
+          businessAddress: shop?.outletAddress || shop?.shopAddress || '',
+        },
+      } : {}),
     };
 
   }
@@ -505,9 +522,9 @@ export class AuthService {
     const customer = user.customerProfile;
     const rider = user.riderProfile;
 
-    const mobile = customer?.phone || shop?.ownerPhone || '';
-    const fullName = customer?.fullName || shop?.ownerName || '';
-    const address = customer?.deliveryAddress || shop?.shopAddress || shop?.outletAddress || '';
+    const mobile = customer?.phone || rider?.phone || shop?.ownerPhone || '';
+    const fullName = user.fullName || customer?.fullName || shop?.ownerName || '';
+    const address = customer?.deliveryAddress || rider?.address || shop?.shopAddress || shop?.outletAddress || '';
 
     const userData = {
       ...result,
@@ -519,16 +536,32 @@ export class AuthService {
       address,
     };
 
+    const riderData = rider ? {
+      ...rider,
+      id: user.id,
+      userId: user.id,
+      email: user.email,
+      fullName: user.fullName || fullName || 'Rider Partner',
+      role: user.role,
+      vehicleType: rider.vehicleType,
+      vehicleNumber: rider.vehicleNumber,
+      status: rider.status || 'AVAILABLE',
+      isApproved: rider.isApproved || false,
+    } : undefined;
+
     return {
       accessToken,
       access_token: accessToken,
       user: userData,
-      merchant: {
-        ...userData,
-        shop,
-        shopName: shop?.shopName || '',
-        businessAddress: shop?.outletAddress || shop?.shopAddress || '',
-      },
+      ...(riderData ? { rider: riderData } : {}),
+      ...(shop ? {
+        merchant: {
+          ...userData,
+          shop,
+          shopName: shop?.shopName || '',
+          businessAddress: shop?.outletAddress || shop?.shopAddress || '',
+        }
+      } : {}),
     };
   }
 

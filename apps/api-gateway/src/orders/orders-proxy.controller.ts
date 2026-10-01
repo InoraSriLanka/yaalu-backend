@@ -51,20 +51,29 @@ export class OrdersProxyController {
   async updateStatus(@Param('id') id: string, @Body() body: { status: string }) {
     const updatedOrder = await this.ordersService.updateStatus(id, body.status as OrderStatus);
     
-    if (body.status.toLowerCase() === 'confirmed') {
+    const statusLower = body.status.toLowerCase();
+    
+    // When shop confirms order (sets to CONFIRMED or PREPARING) → broadcast delivery request to riders
+    if (statusLower === 'confirmed' || statusLower === 'preparing') {
       const deliveryRequest = {
         id: updatedOrder.id,
-        pickupAddress: 'Yaalu Shop (Kottawa)',
-        dropoffAddress: updatedOrder.notes || updatedOrder.customerName || 'Customer Location',
+        pickupAddress: 'Yaalu Shop — Kottawa',
+        dropoffAddress: updatedOrder.notes?.replace(/^PAID TO SHOP.*|^Cash on Delivery/, '').trim() 
+          || updatedOrder.customerName 
+          || 'Customer Location',
         rideType: 'DELIVERY',
         selectedVehicleType: 'bike',
         finalFare: Number(updatedOrder.totalAmount),
         createdAt: updatedOrder.createdAt,
-        pickupLat: 6.8412, // Kottawa latitude (mock since ShopProfile lacks coords)
-        pickupLng: 79.9654  // Kottawa longitude
+        pickupLat: 6.8412,
+        pickupLng: 79.9654,
+        // extra delivery metadata
+        customerName: updatedOrder.customerName,
+        orderItems: (updatedOrder as any).items?.length,
+        orderTotal: Number(updatedOrder.totalAmount),
       };
       
-      this.ridesGateway.broadcastNewHireRequest(deliveryRequest);
+      this.ridesGateway.broadcastNewHireRequest(deliveryRequest as any);
     }
     
     return updatedOrder;
